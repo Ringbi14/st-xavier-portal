@@ -335,7 +335,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Tab 1: Notices Form */}
+        {/* Tab 1: Notices */}
         {activeTab === "notice" && (
           <form onSubmit={handleNoticeSubmit} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
             <h2 className="text-lg font-bold text-white">Publish Notice or Announcement</h2>
@@ -403,7 +403,7 @@ export default function AdminPage() {
           </form>
         )}
 
-        {/* Tab 2: Events Form */}
+        {/* Tab 2: Events */}
         {activeTab === "event" && (
           <form onSubmit={handleEventSubmit} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
             <h2 className="text-lg font-bold text-white">Schedule Department Event</h2>
@@ -487,7 +487,7 @@ export default function AdminPage() {
           </form>
         )}
 
-        {/* Tab 3: Gallery Upload Form */}
+        {/* Tab 3: Gallery Upload */}
         {activeTab === "gallery" && (
           <form onSubmit={handleGallerySubmit} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
             <div>
@@ -556,7 +556,7 @@ export default function AdminPage() {
           </form>
         )}
 
-        {/* Tab 4: Student Approvals Queue */}
+        {/* Tab 4: Approvals */}
         {activeTab === "approvals" && (
           <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
             <div>
@@ -615,7 +615,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Tab 5: Add New Faculty Admin */}
+        {/* Tab 5: Admins */}
         {activeTab === "admins" && (
           <form onSubmit={handleAddAdmin} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
             <div>
