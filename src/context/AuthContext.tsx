@@ -4,7 +4,9 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { 
   User, 
   onAuthStateChanged, 
-  signOut as firebaseSignOut 
+  signOut as firebaseSignOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
 } from "firebase/auth";
 import { 
   doc, 
@@ -19,9 +21,12 @@ import {
 import { auth, db } from "@/lib/firebase";
 
 export interface UserProfile {
+  uid?: string;
   email: string;
   name?: string;
+  rollNumber?: string;
   role: "admin" | "student";
+  status?: "pending" | "approved" | "rejected";
   createdAt?: any;
 }
 
@@ -29,6 +34,8 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  login: (email: string, pass: string) => Promise<void>;
+  registerStudent: (email: string, pass: string, name: string, rollNumber: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -36,6 +43,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
+  login: async () => {},
+  registerStudent: async () => {},
   logout: async () => {},
 });
 
@@ -54,37 +63,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const userSnap = await getDoc(userDocRef);
 
           if (userSnap.exists()) {
-            // Case 1: Profile already mapped to this UID
             setProfile(userSnap.data() as UserProfile);
           } else {
-            // Case 2: Check if email was pre-registered as an admin by document field
+            // Check if this email was pre-registered as an admin
             const usersRef = collection(db, "users");
             const q = query(usersRef, where("email", "==", currentUser.email.toLowerCase().trim()));
             const querySnap = await getDocs(q);
 
             if (!querySnap.empty) {
               const matchedData = querySnap.docs[0].data() as UserProfile;
-              // Link their UID to the existing pre-assigned role
               await setDoc(userDocRef, {
                 ...matchedData,
                 email: currentUser.email.toLowerCase().trim(),
+                status: "approved",
                 updatedAt: serverTimestamp(),
               });
-              setProfile(matchedData);
+              setProfile({ ...matchedData, status: "approved" });
             } else {
-              // Case 3: Public student signup default
-              const defaultStudentProfile: UserProfile = {
+              const defaultStudent: UserProfile = {
+                uid: currentUser.uid,
                 email: currentUser.email.toLowerCase().trim(),
                 name: currentUser.displayName || "Student",
                 role: "student",
+                status: "pending",
                 createdAt: serverTimestamp(),
               };
-              await setDoc(userDocRef, defaultStudentProfile);
-              setProfile(defaultStudentProfile);
+              await setDoc(userDocRef, defaultStudent);
+              setProfile(defaultStudent);
             }
           }
         } catch (error) {
-          console.error("Error synchronizing user profile:", error);
+          console.error("Error fetching user profile:", error);
           setProfile(null);
         }
       } else {
@@ -97,6 +106,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
+  const login = async (email: string, pass: string) => {
+    await signInWithEmailAndPassword(auth, email.trim(), pass);
+  };
+
+  const registerStudent = async (email: string, pass: string, name: string, rollNumber: string) => {
+    const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+    const newStudentProfile: UserProfile = {
+      uid: cred.user.uid,
+      email: email.toLowerCase().trim(),
+      name,
+      rollNumber,
+      role: "student",
+      status: "pending",
+      createdAt: serverTimestamp(),
+    };
+    await setDoc(doc(db, "users", cred.user.uid), newStudentProfile);
+    setProfile(newStudentProfile);
+  };
+
   const logout = async () => {
     await firebaseSignOut(auth);
     setUser(null);
@@ -104,7 +132,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, registerStudent, logout }}>
       {children}
     </AuthContext.Provider>
   );
