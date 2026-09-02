@@ -4,237 +4,264 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { 
   ShieldAlert, 
-  BellPlus, 
-  CalendarPlus, 
+  Send, 
+  Calendar, 
+  Bell, 
+  MapPin, 
+  Clock, 
+  Users, 
   CheckCircle2, 
-  Loader2, 
-  AlertCircle 
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 
 export default function AdminPage() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
 
-  // Tab switcher: notices or events
   const [activeTab, setActiveTab] = useState<"notice" | "event">("notice");
-
-  // Notice Form State
-  const [noticeTitle, setNoticeTitle] = useState("");
-  const [noticeContent, setNoticeContent] = useState("");
-  const [noticeCategory, setNoticeCategory] = useState<"academic" | "fieldwork" | "examination" | "general">("general");
-  const [isNoticePublic, setIsNoticePublic] = useState(true);
-
-  // Event Form State
-  const [eventTitle, setEventTitle] = useState("");
-  const [eventDate, setEventDate] = useState("");
-  const [eventTime, setEventTime] = useState("");
-  const [eventVenue, setEventVenue] = useState("");
-  const [eventDesc, setEventDesc] = useState("");
-  const [eventOrganizer, setEventOrganizer] = useState("");
-  const [resourcePerson, setResourcePerson] = useState("");
-
-  // Status & Feedback
   const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Route protection
+  // Form State for Notices
+  const [noticeData, setNoticeData] = useState({
+    title: "",
+    category: "General",
+    content: "",
+    isPublic: true,
+  });
+
+  // Form State for Events
+  const [eventData, setEventData] = useState({
+    title: "",
+    date: "",
+    time: "",
+    venue: "",
+    resourcePerson: "",
+    description: "",
+  });
+
+  // Role Protection Check
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
+    if (!loading) {
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+      if (profile?.role !== "admin") {
+        router.push("/dashboard");
+      }
     }
-  }, [user, loading, router]);
+  }, [user, profile, loading, router]);
 
-  if (loading || !user) {
+  if (loading || !user || profile?.role !== "admin") {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-sm">
-        Verifying administrative authorization...
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-sm gap-2">
+        <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+        Verifying administrator credentials...
       </div>
     );
   }
 
-  // Handle Notice Submission
-  const handlePublishNotice = async (e: React.FormEvent) => {
+  const handleNoticeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setFeedback(null);
+    setStatusMessage(null);
 
     try {
       await addDoc(collection(db, "notices"), {
-        title: noticeTitle,
-        content: noticeContent,
-        category: noticeCategory,
-        isPublic: isNoticePublic,
-        priority: "normal",
-        publishedAt: new Date().toISOString().split("T")[0],
-        authorId: user.uid,
+        ...noticeData,
+        publishedAt: serverTimestamp(),
+        authorEmail: user.email,
       });
 
-      setFeedback({ type: "success", text: "Department notice published successfully!" });
-      setNoticeTitle("");
-      setNoticeContent("");
+      setStatusMessage({ type: "success", text: "Department notice published successfully." });
+      setNoticeData({
+        title: "",
+        category: "General",
+        content: "",
+        isPublic: true,
+      });
     } catch (err: any) {
-      setFeedback({ type: "error", text: "Error publishing notice. Check Firestore database permissions." });
+      setStatusMessage({ type: "error", text: err.message || "Failed to publish notice." });
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Handle Event Submission
-  const handlePublishEvent = async (e: React.FormEvent) => {
+  const handleEventSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setFeedback(null);
+    setStatusMessage(null);
 
     try {
       await addDoc(collection(db, "events"), {
-        title: eventTitle,
-        date: eventDate,
-        time: eventTime,
-        venue: eventVenue,
-        description: eventDesc,
-        organizer: eventOrganizer || "Department of Social Work",
-        resourcePerson: resourcePerson || "To be confirmed",
+        ...eventData,
         isUpcoming: true,
-        createdAt: new Date().toISOString(),
+        createdAt: serverTimestamp(),
+        authorEmail: user.email,
       });
 
-      setFeedback({ type: "success", text: "Department event added successfully!" });
-      setEventTitle("");
-      setEventDate("");
-      setEventTime("");
-      setEventVenue("");
-      setEventDesc("");
-      setResourcePerson("");
+      setStatusMessage({ type: "success", text: "Calendar event scheduled successfully." });
+      setEventData({
+        title: "",
+        date: "",
+        time: "",
+        venue: "",
+        resourcePerson: "",
+        description: "",
+      });
     } catch (err: any) {
-      setFeedback({ type: "error", text: "Error saving event. Check Firestore database permissions." });
+      setStatusMessage({ type: "error", text: err.message || "Failed to schedule event." });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-10">
+    <div className="min-h-screen bg-slate-950 text-slate-100 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
-        {/* Admin Header */}
-        <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-2">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              Administrative Content Manager
-            </div>
-            <h1 className="text-2xl font-bold text-white">Department Control Center</h1>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Publish announcements, schedule seminars, and manage department resources.
+        {/* Header Bar */}
+        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/20">
+              Administrative Control Center
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Content Management</h1>
+            <p className="text-xs text-slate-400">
+              Department of Social Work | St. Xavier College, Maram Khunou
             </p>
           </div>
 
-          {/* Form Selector Tabs */}
-          <div className="flex rounded-xl bg-slate-950 border border-slate-800 p-1">
+          {/* Tab Selector */}
+          <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800">
             <button
-              onClick={() => { setActiveTab("notice"); setFeedback(null); }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              onClick={() => {
+                setActiveTab("notice");
+                setStatusMessage(null);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === "notice"
-                  ? "bg-amber-500 text-slate-950 shadow-md"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                  : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              <BellPlus className="w-3.5 h-3.5" />
+              <Bell className="w-3.5 h-3.5" />
               New Notice
             </button>
             <button
-              onClick={() => { setActiveTab("event"); setFeedback(null); }}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              onClick={() => {
+                setActiveTab("event");
+                setStatusMessage(null);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === "event"
-                  ? "bg-amber-500 text-slate-950 shadow-md"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                  : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              <CalendarPlus className="w-3.5 h-3.5" />
+              <Calendar className="w-3.5 h-3.5" />
               New Event
             </button>
           </div>
         </div>
 
-        {/* Feedback Alert */}
-        {feedback && (
+        {/* Status Alerts */}
+        {statusMessage && (
           <div
-            className={`p-4 rounded-xl text-xs flex items-center gap-2.5 border ${
-              feedback.type === "success"
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+            className={`p-4 rounded-xl flex items-center gap-3 text-xs font-medium border ${
+              statusMessage.type === "success"
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                : "bg-rose-500/10 border-rose-500/30 text-rose-400"
             }`}
           >
-            {feedback.type === "success" ? (
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            {statusMessage.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4" />
             ) : (
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4" />
             )}
-            <span>{feedback.text}</span>
+            {statusMessage.text}
           </div>
         )}
 
-        {/* Notice Publishing Form */}
-        {activeTab === "notice" ? (
-          <form onSubmit={handlePublishNotice} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-5">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <BellPlus className="w-4 h-4 text-amber-500" />
-              Publish Department Notice
-            </h2>
+        {/* Notice Form */}
+        {activeTab === "notice" && (
+          <form
+            onSubmit={handleNoticeSubmit}
+            className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6"
+          >
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-white">Publish Notice or Announcement</h2>
+              <p className="text-xs text-slate-400">
+                Notices marked public appear on the home page and public notice board.
+              </p>
+            </div>
 
-            <div className="space-y-4 text-xs">
+            <div className="space-y-4">
               <div>
-                <label className="text-slate-300 font-semibold block mb-1">Notice Title</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Notice Title
+                </label>
                 <input
                   type="text"
                   required
-                  value={noticeTitle}
-                  onChange={(e) => setNoticeTitle(e.target.value)}
-                  placeholder="e.g., Schedule for Rural Exposure Camp 2026"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500 text-xs"
+                  value={noticeData.title}
+                  onChange={(e) => setNoticeData({ ...noticeData, title: e.target.value })}
+                  placeholder="e.g., Rural Exposure Camp Schedule 2026"
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-amber-500 focus:outline-none text-sm text-slate-100 placeholder:text-slate-600"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-slate-300 font-semibold block mb-1">Category</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Category
+                  </label>
                   <select
-                    value={noticeCategory}
-                    onChange={(e) => setNoticeCategory(e.target.value as any)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500 text-xs"
+                    value={noticeData.category}
+                    onChange={(e) => setNoticeData({ ...noticeData, category: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-amber-500 focus:outline-none text-sm text-slate-100"
                   >
-                    <option value="general">General Circular</option>
-                    <option value="fieldwork">Fieldwork & Immersion</option>
-                    <option value="academic">Academic & Curriculum</option>
-                    <option value="examination">Examinations & Viva</option>
+                    <option value="General">General</option>
+                    <option value="Fieldwork">Fieldwork</option>
+                    <option value="Examination">Examination</option>
+                    <option value="Academic">Academic</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-slate-300 font-semibold block mb-1">Access Level</label>
-                  <select
-                    value={isNoticePublic ? "public" : "private"}
-                    onChange={(e) => setIsNoticePublic(e.target.value === "public")}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500 text-xs"
-                  >
-                    <option value="public">Public (Visible to Visitors)</option>
-                    <option value="private">Private (Students & Members Only)</option>
-                  </select>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Visibility
+                  </label>
+                  <div className="flex items-center gap-4 h-[42px] px-3 bg-slate-950 border border-slate-800 rounded-xl">
+                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={noticeData.isPublic}
+                        onChange={(e) => setNoticeData({ ...noticeData, isPublic: e.target.checked })}
+                        className="rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500/20"
+                      />
+                      Make Publicly Visible
+                    </label>
+                  </div>
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-300 font-semibold block mb-1">Notice Body / Description</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Notice Content
+                </label>
                 <textarea
-                  required
                   rows={5}
-                  value={noticeContent}
-                  onChange={(e) => setNoticeContent(e.target.value)}
-                  placeholder="Provide all detailed circular points, reporting dates, prerequisites..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500 text-xs leading-relaxed"
+                  required
+                  value={noticeData.content}
+                  onChange={(e) => setNoticeData({ ...noticeData, content: e.target.value })}
+                  placeholder="Enter full notice body..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-amber-500 focus:outline-none text-sm text-slate-100 placeholder:text-slate-600 resize-none"
                 />
               </div>
             </div>
@@ -242,95 +269,110 @@ export default function AdminPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20 disabled:opacity-50"
             >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Publishing Circular...
-                </>
-              ) : (
-                "Publish Notice to Portal"
-              )}
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Publish Notice
             </button>
           </form>
-        ) : (
-          /* Event Publishing Form */
-          <form onSubmit={handlePublishEvent} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-5">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <CalendarPlus className="w-4 h-4 text-amber-500" />
-              Schedule Department Event
-            </h2>
+        )}
 
-            <div className="space-y-4 text-xs">
+        {/* Event Form */}
+        {activeTab === "event" && (
+          <form
+            onSubmit={handleEventSubmit}
+            className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6"
+          >
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-white">Schedule Department Event</h2>
+              <p className="text-xs text-slate-400">
+                Scheduled events appear in the events calendar and the homepage feed.
+              </p>
+            </div>
+
+            <div className="space-y-4">
               <div>
-                <label className="text-slate-300 font-semibold block mb-1">Event Title</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Event Title
+                </label>
                 <input
                   type="text"
                   required
-                  value={eventTitle}
-                  onChange={(e) => setEventTitle(e.target.value)}
-                  placeholder="e.g., Workshop on Participatory Rural Appraisal"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500 text-xs"
+                  value={eventData.title}
+                  onChange={(e) => setEventData({ ...eventData, title: e.target.value })}
+                  placeholder="e.g., Participatory Rural Appraisal (PRA) Skill Workshop"
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-amber-500 focus:outline-none text-sm text-slate-100 placeholder:text-slate-600"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-slate-300 font-semibold block mb-1">Date</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Date
+                  </label>
                   <input
                     type="date"
                     required
-                    value={eventDate}
-                    onChange={(e) => setEventDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500 text-xs"
+                    value={eventData.date}
+                    onChange={(e) => setEventData({ ...eventData, date: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-amber-500 focus:outline-none text-sm text-slate-100"
                   />
                 </div>
+
                 <div>
-                  <label className="text-slate-300 font-semibold block mb-1">Time</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Time
+                  </label>
                   <input
                     type="text"
-                    value={eventTime}
-                    onChange={(e) => setEventTime(e.target.value)}
+                    value={eventData.time}
+                    onChange={(e) => setEventData({ ...eventData, time: e.target.value })}
                     placeholder="e.g., 10:00 AM - 1:00 PM"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500 text-xs"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-amber-500 focus:outline-none text-sm text-slate-100 placeholder:text-slate-600"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-slate-300 font-semibold block mb-1">Venue / Location</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Venue / Location
+                  </label>
                   <input
                     type="text"
                     required
-                    value={eventVenue}
-                    onChange={(e) => setEventVenue(e.target.value)}
-                    placeholder="e.g., College Auditorium / Seminar Hall"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500 text-xs"
+                    value={eventData.venue}
+                    onChange={(e) => setEventData({ ...eventData, venue: e.target.value })}
+                    placeholder="e.g., Audio-Visual Hall / Rural Field Site"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-amber-500 focus:outline-none text-sm text-slate-100 placeholder:text-slate-600"
                   />
                 </div>
+
                 <div>
-                  <label className="text-slate-300 font-semibold block mb-1">Resource Person / Keynote</label>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Resource Person / Keynote
+                  </label>
                   <input
                     type="text"
-                    value={resourcePerson}
-                    onChange={(e) => setResourcePerson(e.target.value)}
-                    placeholder="e.g., Dr. [Guest Speaker Name]"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500 text-xs"
+                    value={eventData.resourcePerson}
+                    onChange={(e) => setEventData({ ...eventData, resourcePerson: e.target.value })}
+                    placeholder="e.g., Dr. Name / Guest Lecturer"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-amber-500 focus:outline-none text-sm text-slate-100 placeholder:text-slate-600"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-slate-300 font-semibold block mb-1">Event Description</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Event Description
+                </label>
                 <textarea
-                  required
                   rows={4}
-                  value={eventDesc}
-                  onChange={(e) => setEventDesc(e.target.value)}
-                  placeholder="Outline the core objective, agenda, and targeted participant cohort..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 focus:outline-none focus:border-amber-500 text-xs leading-relaxed"
+                  required
+                  value={eventData.description}
+                  onChange={(e) => setEventData({ ...eventData, description: e.target.value })}
+                  placeholder="Outline objectives, target batch, and program details..."
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 focus:border-amber-500 focus:outline-none text-sm text-slate-100 placeholder:text-slate-600 resize-none"
                 />
               </div>
             </div>
@@ -338,16 +380,10 @@ export default function AdminPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20 disabled:opacity-50"
             >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving Event...
-                </>
-              ) : (
-                "Save Event to Portal"
-              )}
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Save Event to Portal
             </button>
           </form>
         )}
