@@ -25,6 +25,8 @@ export interface UserProfile {
   email: string;
   name?: string;
   rollNumber?: string;
+  semester?: string;
+  academicYear?: string;
   role: "admin" | "student";
   status?: "pending" | "approved" | "rejected";
   createdAt?: any;
@@ -35,7 +37,14 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   login: (email: string, pass: string) => Promise<void>;
-  registerStudent: (email: string, pass: string, name: string, rollNumber: string) => Promise<void>;
+  registerStudent: (
+    email: string, 
+    pass: string, 
+    name: string, 
+    rollNumber: string,
+    semester: string,
+    academicYear: string
+  ) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -65,7 +74,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (userSnap.exists()) {
             setProfile(userSnap.data() as UserProfile);
           } else {
-            // Check if this email was pre-registered as an admin
             const usersRef = collection(db, "users");
             const q = query(usersRef, where("email", "==", currentUser.email.toLowerCase().trim()));
             const querySnap = await getDocs(q);
@@ -110,13 +118,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await signInWithEmailAndPassword(auth, email.trim(), pass);
   };
 
-  const registerStudent = async (email: string, pass: string, name: string, rollNumber: string) => {
+  const registerStudent = async (
+    email: string, 
+    pass: string, 
+    name: string, 
+    rollNumber: string,
+    semester: string,
+    academicYear: string
+  ) => {
     const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
     const newStudentProfile: UserProfile = {
       uid: cred.user.uid,
       email: email.toLowerCase().trim(),
       name,
       rollNumber,
+      semester,
+      academicYear,
       role: "student",
       status: "pending",
       createdAt: serverTimestamp(),
