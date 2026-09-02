@@ -4,18 +4,31 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { 
   User, 
   onAuthStateChanged, 
-  signInWithEmailAndPassword, 
   signOut as firebaseSignOut 
 } from "firebase/auth";
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  serverTimestamp 
+} from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { UserProfile } from "@/lib/types";
+
+export interface UserProfile {
+  email: string;
+  name?: string;
+  role: "admin" | "student";
+  createdAt?: any;
+}
 
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -23,7 +36,6 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
-  login: async () => {},
   logout: async () => {},
 });
 
@@ -33,44 +45,66 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+
+      if (currentUser && currentUser.email) {
         try {
-          const docRef = doc(db, "users", firebaseUser.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
+          const userDocRef = doc(db, "users", currentUser.uid);
+          const userSnap = await getDoc(userDocRef);
+
+          if (userSnap.exists()) {
+            // Case 1: Profile already mapped to this UID
+            setProfile(userSnap.data() as UserProfile);
           } else {
-            setProfile({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              displayName: firebaseUser.displayName || "Student",
-              role: "student",
-            });
+            // Case 2: Check if email was pre-registered as an admin by document field
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("email", "==", currentUser.email.toLowerCase().trim()));
+            const querySnap = await getDocs(q);
+
+            if (!querySnap.empty) {
+              const matchedData = querySnap.docs[0].data() as UserProfile;
+              // Link their UID to the existing pre-assigned role
+              await setDoc(userDocRef, {
+                ...matchedData,
+                email: currentUser.email.toLowerCase().trim(),
+                updatedAt: serverTimestamp(),
+              });
+              setProfile(matchedData);
+            } else {
+              // Case 3: Public student signup default
+              const defaultStudentProfile: UserProfile = {
+                email: currentUser.email.toLowerCase().trim(),
+                name: currentUser.displayName || "Student",
+                role: "student",
+                createdAt: serverTimestamp(),
+              };
+              await setDoc(userDocRef, defaultStudentProfile);
+              setProfile(defaultStudentProfile);
+            }
           }
-        } catch (err) {
-          console.error("Error fetching user profile:", err);
+        } catch (error) {
+          console.error("Error synchronizing user profile:", error);
+          setProfile(null);
         }
       } else {
         setProfile(null);
       }
+
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const login = async (email: string, pass: string) => {
-    await signInWithEmailAndPassword(auth, email, pass);
-  };
-
   const logout = async () => {
     await firebaseSignOut(auth);
+    setUser(null);
+    setProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );
