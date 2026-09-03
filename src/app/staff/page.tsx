@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { INITIAL_FACULTY, FacultyMember } from "@/data/facultyData";
@@ -11,21 +10,25 @@ import {
   GraduationCap, 
   BookOpen, 
   Building,
-  ArrowRight
+  Phone
 } from "lucide-react";
 
-export default function FacultyDirectoryPage() {
-  const [facultyList, setFacultyList] = useState<FacultyMember[]>(INITIAL_FACULTY);
+interface ExtendedFaculty extends FacultyMember {
+  photoUrl?: string;
+}
 
-  // Auto-sync real-time with Firestore
+export default function FacultyDirectoryPage() {
+  const [facultyList, setFacultyList] = useState<ExtendedFaculty[]>(INITIAL_FACULTY);
+
+  // Sync real-time with Firestore staff collection
   useEffect(() => {
     try {
       const q = query(collection(db, "staff"));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         if (!snapshot.empty) {
-          const dbStaff: FacultyMember[] = snapshot.docs.map((d) => ({
+          const dbStaff: ExtendedFaculty[] = snapshot.docs.map((d) => ({
             id: d.id,
-            ...(d.data() as Omit<FacultyMember, "id">),
+            ...(d.data() as Omit<ExtendedFaculty, "id">),
           }));
           setFacultyList(dbStaff);
         } else {
@@ -72,8 +75,16 @@ export default function FacultyDirectoryPage() {
                 
                 {/* Faculty Card Avatar & Name */}
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 text-amber-400 font-black text-xl group-hover:border-amber-500/50 transition">
-                    {member.name.replace(/^(Dr\.|Prof\.|Mr\.|Ms\.)\s*/i, "").charAt(0)}
+                  <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 overflow-hidden text-amber-400 font-black text-xl group-hover:border-amber-500/50 transition shadow-md">
+                    {member.photoUrl ? (
+                      <img
+                        src={member.photoUrl}
+                        alt={member.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      member.name.replace(/^(Dr\.|Prof\.|Mr\.|Ms\.)\s*/i, "").charAt(0)
+                    )}
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-white group-hover:text-amber-400 transition-colors">
@@ -111,6 +122,16 @@ export default function FacultyDirectoryPage() {
                       <div>
                         <span className="text-slate-500 block text-[10px] uppercase font-semibold">Office Desk</span>
                         <span>{member.officeRoom}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {member.phone && (
+                    <div className="flex items-start gap-2">
+                      <Phone className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-slate-500 block text-[10px] uppercase font-semibold">Phone</span>
+                        <span>{member.phone}</span>
                       </div>
                     </div>
                   )}
