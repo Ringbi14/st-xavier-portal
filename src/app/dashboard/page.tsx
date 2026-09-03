@@ -20,6 +20,14 @@ export default function StudentDashboard() {
 
   const categories = ["All", "Fieldwork", "Templates", "Syllabus", "Guidelines"];
 
+  // Display user name safely without relying on a strict UserProfile property
+  const studentName = 
+    user?.displayName || 
+    (profile as any)?.name || 
+    (profile as any)?.displayName || 
+    user?.email?.split("@")[0] || 
+    "Scholar";
+
   const filteredResources = STUDENT_RESOURCES.filter((res) => {
     const matchesCategory = selectedCategory === "All" || res.category === selectedCategory;
     const matchesSearch = res.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -40,7 +48,7 @@ export default function StudentDashboard() {
                 <span>Student Academic Portal</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-                Welcome, {profile?.displayName || user?.email?.split("@")[0] || "Scholar"}
+                Welcome, {studentName}
               </h1>
               <p className="text-sm text-slate-400 mt-1">
                 Access official fieldwork templates, syllabus copies, circulars, and departmental materials.
@@ -50,7 +58,7 @@ export default function StudentDashboard() {
             <div className="flex items-center gap-3">
               <Link
                 href="/notices"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold transition"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 text-slate-200 border border-slate-700 text-xs font-semibold transition"
               >
                 <Bell className="w-4 h-4 text-amber-400" />
                 <span>View Circulars</span>
@@ -117,7 +125,7 @@ export default function StudentDashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search templates or syllabus..."
-                className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 transition"
+                className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/60 transition"
               />
             </div>
           </div>
