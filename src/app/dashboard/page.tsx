@@ -15,7 +15,8 @@ import {
   Loader2,
   UploadCloud,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from "lucide-react";
 
 interface Notice {
@@ -58,10 +59,10 @@ export default function DashboardPage() {
         setFetchingNotices(false);
       }
     }
-    if (user) {
+    if (user && profile?.status === "approved") {
       loadNotices();
     }
-  }, [user]);
+  }, [user, profile]);
 
   const handleStudentUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +124,40 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-sm gap-2">
         <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
         Loading account details...
+      </div>
+    );
+  }
+
+  // --- CHECK IF ACCOUNT IS PENDING APPROVAL ---
+  if (profile && profile.role !== "admin" && profile.status === "pending") {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+            <Clock className="w-6 h-6 animate-pulse" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-xl font-bold text-white">Account Pending Approval</h1>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Hello <span className="text-slate-200 font-semibold">{profile.name || user.email}</span>, your registration has been submitted. For institutional verification, an administrator must approve your student account before you can access internal resources.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-1 text-left">
+            <div><span className="text-slate-500">Email:</span> {user.email}</div>
+            {profile.rollNumber && <div><span className="text-slate-500">Roll No:</span> {profile.rollNumber}</div>}
+            <div><span className="text-slate-500">Status:</span> <span className="text-amber-400 font-medium">Pending Review</span></div>
+          </div>
+
+          <button
+            onClick={() => logOut()}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
+        </div>
       </div>
     );
   }
