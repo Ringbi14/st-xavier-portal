@@ -1,22 +1,35 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import Link from "next/link";
 import { 
-  FolderLock, 
-  Calendar, 
   Bell, 
   FileText, 
   LogOut, 
-  User, 
-  ShieldCheck,
-  BookOpen
+  ShieldCheck, 
+  Download, 
+  Loader2,
+  Calendar,
+  Image as ImageIcon
 } from "lucide-react";
 
+interface Notice {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  isPublic: boolean;
+}
+
 export default function DashboardPage() {
-  const { user, profile, loading, logout } = useAuth();
+  const { user, profile, loading, logOut } = useAuth();
   const router = useRouter();
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [fetchingNotices, setFetchingNotices] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -24,46 +37,66 @@ export default function DashboardPage() {
     }
   }, [user, loading, router]);
 
+  useEffect(() => {
+    async function loadNotices() {
+      try {
+        const q = query(collection(db, "notices"), orderBy("publishedAt", "desc"), limit(5));
+        const snap = await getDocs(q);
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Notice[];
+        setNotices(data);
+      } catch (err) {
+        console.error("Error loading notices:", err);
+      } finally {
+        setFetchingNotices(false);
+      }
+    }
+    if (user) {
+      loadNotices();
+    }
+  }, [user]);
+
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-sm">
-        Loading Student Portal...
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-sm gap-2">
+        <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+        Loading account details...
       </div>
     );
   }
 
+  const userName = profile?.name || user?.displayName || user?.email?.split("@")[0] || "Member";
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div className="min-h-screen bg-slate-950 text-slate-100 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
-        {/* Dashboard Top Header */}
-        <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        {/* Header Bar */}
+        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <span className="text-xs font-semibold text-amber-500 uppercase tracking-widest bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/20">
-              {profile?.role.toUpperCase()} PORTAL
+            <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/20">
+              {profile?.role === "admin" ? "Admin Portal" : "Student Portal"}
             </span>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">
-              Welcome back, {profile?.displayName || user.email?.split("@")[0]}
+              Welcome back, {userName}
             </h1>
-            <p className="text-xs sm:text-sm text-slate-400">
+            <p className="text-xs text-slate-400">
               Department of Social Work | St. Xavier College, Maram Khunou
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {profile?.role === "admin" && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-semibold transition"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                Admin Center
+              </Link>
+            )}
             <button
-              onClick={() => router.push("/admin")}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500 hover:text-slate-950 transition-all"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              Admin Center
-            </button>
-            <button
-              onClick={async () => {
-                await logout();
-                router.push("/");
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-rose-500/20 hover:text-rose-400 text-slate-300 border border-slate-700 transition-all"
+              onClick={() => logOut()}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
             >
               <LogOut className="w-4 h-4" />
               Sign Out
@@ -71,119 +104,69 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Dashboard Grid Sections */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Main Area: Internal Notices & Resources */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Private Notices Card */}
-            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-              <div className="flex items-center gap-2 text-white font-bold">
-                <Bell className="w-5 h-5 text-amber-500" />
-                <h2>Private Department Notices</h2>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-amber-400">Fieldwork Guideline</span>
-                    <span className="text-[10px] text-slate-500">Internal</span>
-                  </div>
-                  <h4 className="text-sm font-semibold text-slate-200">[ADD INTERNAL FIELDWORK LOG SUBMISSION SCHEDULE]</h4>
-                  <p className="text-xs text-slate-400">Instructions on weekly casework record submissions.</p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-amber-400">Cohort Announcement</span>
-                    <span className="text-[10px] text-slate-500">Internal</span>
-                  </div>
-                  <h4 className="text-sm font-semibold text-slate-200">[ADD SEMESTER CLASS SCHEDULE UPDATE]</h4>
-                  <p className="text-xs text-slate-400">Revised timetable for social casework and group work modules.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Academic Materials & Downloads */}
-            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-              <div className="flex items-center gap-2 text-white font-bold">
-                <FolderLock className="w-5 h-5 text-amber-500" />
-                <h2>Student Academic Resources</h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-amber-500" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-200">Fieldwork Diary Format</h4>
-                      <span className="text-[10px] text-slate-500">PDF Document</span>
-                    </div>
-                  </div>
-                  <span className="text-xs text-amber-500 font-semibold cursor-pointer hover:underline">Download</span>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <BookOpen className="w-5 h-5 text-amber-500" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-200">MSW/BSW Syllabus</h4>
-                      <span className="text-[10px] text-slate-500">PDF Document</span>
-                    </div>
-                  </div>
-                  <span className="text-xs text-amber-500 font-semibold cursor-pointer hover:underline">Download</span>
-                </div>
-              </div>
-            </div>
-
+        {/* Private Notices */}
+        <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
+          <div className="flex items-center gap-2 text-white font-bold text-lg">
+            <Bell className="w-5 h-5 text-amber-500" />
+            <h2>Department Notices</h2>
           </div>
 
-          {/* Right Column: Profile Summary & Internal Dates */}
-          <div className="space-y-6">
-            
-            {/* User Badge */}
-            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <User className="w-4 h-4 text-amber-500" />
-                Member Profile
-              </h3>
-              <div className="space-y-2 text-xs text-slate-400">
-                <div className="flex justify-between border-b border-slate-800 pb-2">
-                  <span>Status:</span>
-                  <span className="text-emerald-400 font-medium">Active Member</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-800 pb-2">
-                  <span>Role:</span>
-                  <span className="text-slate-200 capitalize">{profile?.role}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Institution:</span>
-                  <span className="text-slate-200 text-right">St. Xavier College</span>
-                </div>
-              </div>
+          {fetchingNotices ? (
+            <div className="flex items-center justify-center p-8 text-xs text-slate-400 gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+              Loading notices...
             </div>
-
-            {/* Internal Important Dates */}
-            <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-amber-500" />
-                Key Internal Dates
-              </h3>
-              <div className="space-y-2 text-xs text-slate-400">
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-amber-400 font-semibold block">[ADD DATE]</span>
-                  <span className="text-slate-300">Fieldwork Report Submission</span>
-                </div>
-                <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-amber-400 font-semibold block">[ADD DATE]</span>
-                  <span className="text-slate-300">Internal Viva Voce / Assessment</span>
-                </div>
-              </div>
+          ) : notices.length === 0 ? (
+            <div className="p-6 text-center text-xs text-slate-500 bg-slate-950 rounded-xl border border-slate-800">
+              No recent departmental announcements.
             </div>
+          ) : (
+            <div className="space-y-3">
+              {notices.map((n) => (
+                <div key={n.id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white">{n.title}</h3>
+                    <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">
+                      {n.category}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 whitespace-pre-wrap">{n.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
+        {/* Academic Resources */}
+        <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
+          <div className="flex items-center gap-2 text-white font-bold text-lg">
+            <FileText className="w-5 h-5 text-amber-500" />
+            <h2>Academic Resources</h2>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-white">Fieldwork Diary Format</div>
+                <div className="text-xs text-slate-500">Document Guide</div>
+              </div>
+              <button className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-lg text-xs font-semibold">
+                <Download className="w-3.5 h-3.5" />
+                Download
+              </button>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold text-white">MSW / BSW Syllabus</div>
+                <div className="text-xs text-slate-500">Curriculum Structure</div>
+              </div>
+              <button className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded-lg text-xs font-semibold">
+                <Download className="w-3.5 h-3.5" />
+                Download
+              </button>
+            </div>
+          </div>
         </div>
 
       </div>

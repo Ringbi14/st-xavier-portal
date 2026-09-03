@@ -1,111 +1,90 @@
 "use client";
 
-import React, { useState } from "react";
-import { Mail, KeyRound, GraduationCap, ArrowRight, Loader2, AlertCircle, User, Hash, Clock } from "lucide-react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { 
+  LogIn, 
+  UserPlus, 
+  Mail, 
+  Lock, 
+  User, 
+  FileBadge, 
+  AlertCircle, 
+  Loader2,
+  CheckCircle2
+} from "lucide-react";
 
 export default function LoginPage() {
+  const { user, profile, signInWithEmail, registerWithEmail, loading } = useAuth();
+  const router = useRouter();
+
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [rollNumber, setRollNumber] = useState("");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pendingNotice, setPendingNotice] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
-  const { login, registerStudent } = useAuth();
-  const router = useRouter();
+  useEffect(() => {
+    if (!loading && user) {
+      if (profile?.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
+    }
+  }, [user, profile, loading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setIsSubmitting(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+    setSubmitting(true);
 
     try {
       if (isRegistering) {
-        await registerStudent(email, password, name, rollNumber);
-        setPendingNotice(true);
+        if (!name.trim() || !rollNumber.trim()) {
+          throw new Error("Please fill in your full name and student roll number.");
+        }
+        await registerWithEmail(email.trim(), password, name.trim(), rollNumber.trim());
+        setSuccessMsg("Registration submitted! An administrator will approve your access shortly.");
+        setIsRegistering(false);
       } else {
-        await login(email, password);
-        router.push("/dashboard");
+        await signInWithEmail(email.trim(), password);
       }
     } catch (err: any) {
-      if (isRegistering) {
-        setError(err.message || "Failed to submit registration.");
-      } else {
-        setError("Invalid email or password. Please try again.");
-      }
+      setErrorMsg(err.message || "Authentication failed. Please check your details.");
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
-  if (pendingNotice) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center px-4 py-16">
-        <div className="w-full max-w-md space-y-6 p-8 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-2xl text-center">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30">
-            <Clock className="w-6 h-6" />
-          </div>
-          <h2 className="text-xl font-bold text-white">Application Received</h2>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Your details have been submitted to the Department of Social Work. An administrator will verify your credentials before access is granted.
-          </p>
-          <button
-            onClick={() => {
-              setPendingNotice(false);
-              setIsRegistering(false);
-            }}
-            className="w-full py-2.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all"
-          >
-            Back to Sign In
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md space-y-6 p-8 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-2xl">
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center text-slate-950 font-bold mx-auto shadow-lg shadow-amber-500/20">
-            <GraduationCap className="w-6 h-6" />
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6">
+        <div className="text-center space-y-1">
+          <h1 className="text-xl font-bold text-white">
+            {isRegistering ? "Student Portal Registration" : "Department Portal Sign In"}
+          </h1>
+          <p className="text-xs text-slate-400">
+            Department of Social Work | St. Xavier College
+          </p>
+        </div>
+
+        {errorMsg && (
+          <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
           </div>
-          <h2 className="text-2xl font-bold text-white">
-            {isRegistering ? "Student Registration" : "Member Portal"}
-          </h2>
-          <p className="text-xs text-slate-400">Department of Social Work, St. Xavier College</p>
-        </div>
+        )}
 
-        {/* Tab switch between Login & Register */}
-        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
-          <button
-            type="button"
-            onClick={() => { setIsRegistering(false); setError(""); }}
-            className={`flex-1 py-2 rounded-lg font-semibold transition-all ${
-              !isRegistering ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => { setIsRegistering(true); setError(""); }}
-            className={`flex-1 py-2 rounded-lg font-semibold transition-all ${
-              isRegistering ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Register Student
-          </button>
-        </div>
-
-        {error && (
-          <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
+        {successMsg && (
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{successMsg}</span>
           </div>
         )}
 
@@ -113,7 +92,7 @@ export default function LoginPage() {
           {isRegistering && (
             <>
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Full Name</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                   <input
@@ -121,23 +100,23 @@ export default function LoginPage() {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g., Dominic"
-                    className="w-full pl-9 pr-4 py-2 rounded-lg bg-slate-950 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:border-amber-500"
+                    placeholder="e.g., John Doe"
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">College Roll Number / Reg No.</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Roll / Register Number</label>
                 <div className="relative">
-                  <Hash className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                  <FileBadge className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                   <input
                     type="text"
                     required
                     value={rollNumber}
                     onChange={(e) => setRollNumber(e.target.value)}
-                    placeholder="e.g., MSW2026-04"
-                    className="w-full pl-9 pr-4 py-2 rounded-lg bg-slate-950 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:border-amber-500"
+                    placeholder="e.g., 24SW01"
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
@@ -145,7 +124,7 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Email Address</label>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               <input
@@ -153,45 +132,63 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="student@gmail.com"
-                className="w-full pl-9 pr-4 py-2 rounded-lg bg-slate-950 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:border-amber-500"
+                placeholder="name@example.com"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">Password</label>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
             <div className="relative">
-              <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-4 py-2 rounded-lg bg-slate-950 border border-slate-800 text-sm text-slate-200 focus:outline-none focus:border-amber-500"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
               />
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="w-full py-2.5 rounded-lg text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
+            disabled={submitting}
+            className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-md transition disabled:opacity-50"
           >
-            {isSubmitting ? (
+            {submitting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : isRegistering ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Processing...
+                <UserPlus className="w-4 h-4" />
+                Submit Registration
               </>
             ) : (
               <>
-                {isRegistering ? "Submit for Approval" : "Sign In to Dashboard"}
-                <ArrowRight className="w-4 h-4" />
+                <LogIn className="w-4 h-4" />
+                Sign In
               </>
             )}
           </button>
         </form>
+
+        <div className="text-center pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegistering(!isRegistering);
+              setErrorMsg("");
+              setSuccessMsg("");
+            }}
+            className="text-xs text-amber-400 hover:underline"
+          >
+            {isRegistering
+              ? "Already registered? Sign in here"
+              : "New student? Register for access"}
+          </button>
+        </div>
       </div>
     </div>
   );
