@@ -1,763 +1,347 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { 
   collection, 
+  onSnapshot, 
   addDoc, 
-  getDocs, 
-  doc, 
-  updateDoc, 
   deleteDoc, 
-  serverTimestamp, 
+  doc, 
   query, 
-  where 
+  orderBy 
 } from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
 import { 
-  Send, 
-  Calendar, 
-  Bell, 
-  Users, 
   ShieldCheck, 
-  CheckCircle2, 
-  AlertCircle,
-  Loader2,
-  UserCheck,
-  UserX,
-  UserPlus,
-  Image as ImageIcon,
-  UploadCloud,
-  Check,
-  X
+  Users, 
+  PlusCircle, 
+  Trash2, 
+  GraduationCap, 
+  Mail, 
+  Building, 
+  BookOpen, 
+  ArrowLeft,
+  CheckCircle2
 } from "lucide-react";
 
-interface PendingStudent {
+interface FacultyItem {
   id: string;
   name: string;
+  designation: string;
+  qualification: string;
+  specialization: string;
   email: string;
-  rollNumber: string;
-  status: string;
+  officeRoom?: string;
+  createdAt?: string;
 }
 
-interface PendingPhoto {
-  id: string;
-  title: string;
-  category: string;
-  imageUrl: string;
-  authorEmail: string;
-  authorName?: string;
-  status: string;
-}
-
-export default function AdminPage() {
-  const { user, profile, loading } = useAuth();
-  const router = useRouter();
-
-  const [activeTab, setActiveTab] = useState<"notice" | "event" | "approvals" | "admins" | "gallery">("notice");
+export default function AdminPortalPage() {
+  const { user, profile } = useAuth();
+  const [facultyMembers, setFacultyMembers] = useState<FacultyItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<"staff" | "overview">("staff");
 
-  // Approvals State
-  const [pendingStudents, setPendingStudents] = useState<PendingStudent[]>([]);
-  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
-  const [loadingApprovals, setLoadingApprovals] = useState(false);
-
-  // New Admin Form
-  const [newAdminEmail, setNewAdminEmail] = useState("");
-  const [newAdminName, setNewAdminName] = useState("");
-
-  // Notices Form
-  const [noticeData, setNoticeData] = useState({
-    title: "",
-    category: "General",
-    content: "",
-    isPublic: true,
+  // Form input states
+  const [formData, setFormData] = useState({
+    name: "",
+    designation: "",
+    qualification: "",
+    specialization: "",
+    email: "",
+    officeRoom: "",
   });
 
-  // Events Form
-  const [eventData, setEventData] = useState({
-    title: "",
-    date: "",
-    time: "",
-    venue: "",
-    resourcePerson: "",
-    description: "",
-  });
-
-  // Gallery Form State
-  const [galleryTitle, setGalleryTitle] = useState("");
-  const [galleryCategory, setGalleryCategory] = useState("Fieldwork");
-  const [galleryFile, setGalleryFile] = useState<File | null>(null);
-
+  // Listen to the 'staff' collection in real-time
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-      if (profile?.role !== "admin") {
-        router.push("/dashboard");
-      }
-    }
-  }, [user, profile, loading, router]);
-
-  useEffect(() => {
-    if (activeTab === "approvals") {
-      fetchApprovals();
-    }
-  }, [activeTab]);
-
-  const fetchApprovals = async () => {
-    setLoadingApprovals(true);
     try {
-      // 1. Fetch pending students
-      const qStudents = query(collection(db, "users"), where("role", "==", "student"), where("status", "==", "pending"));
-      const snapStudents = await getDocs(qStudents);
-      const studentList = snapStudents.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as PendingStudent[];
-      setPendingStudents(studentList);
-
-      // 2. Fetch pending photos
-      const qPhotos = query(collection(db, "gallery"), where("status", "==", "pending"));
-      const snapPhotos = await getDocs(qPhotos);
-      const photoList = snapPhotos.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as PendingPhoto[];
-      setPendingPhotos(photoList);
-    } catch (err: any) {
-      console.error(err);
-    } finally {
-      setLoadingApprovals(false);
-    }
-  };
-
-  const handleApproveStudent = async (id: string) => {
-    try {
-      await updateDoc(doc(db, "users", id), { status: "approved" });
-      setPendingStudents((prev) => prev.filter((s) => s.id !== id));
-      setStatusMessage({ type: "success", text: "Student approved successfully." });
-    } catch (err: any) {
-      setStatusMessage({ type: "error", text: "Failed to approve student." });
-    }
-  };
-
-  const handleRejectStudent = async (id: string) => {
-    try {
-      await deleteDoc(doc(db, "users", id));
-      setPendingStudents((prev) => prev.filter((s) => s.id !== id));
-      setStatusMessage({ type: "success", text: "Student registration rejected." });
-    } catch (err: any) {
-      setStatusMessage({ type: "error", text: "Failed to reject registration." });
-    }
-  };
-
-  const handleApprovePhoto = async (id: string) => {
-    try {
-      await updateDoc(doc(db, "gallery", id), { status: "approved" });
-      setPendingPhotos((prev) => prev.filter((p) => p.id !== id));
-      setStatusMessage({ type: "success", text: "Photo approved and published to the gallery!" });
-    } catch (err: any) {
-      setStatusMessage({ type: "error", text: "Failed to approve photo." });
-    }
-  };
-
-  const handleRejectPhoto = async (id: string) => {
-    try {
-      await deleteDoc(doc(db, "gallery", id));
-      setPendingPhotos((prev) => prev.filter((p) => p.id !== id));
-      setStatusMessage({ type: "success", text: "Photo submission rejected and removed." });
-    } catch (err: any) {
-      setStatusMessage({ type: "error", text: "Failed to reject photo." });
-    }
-  };
-
-  const handleAddAdmin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setStatusMessage(null);
-
-    try {
-      await addDoc(collection(db, "users"), {
-        email: newAdminEmail.toLowerCase().trim(),
-        name: newAdminName.trim() || "Faculty Admin",
-        role: "admin",
-        status: "approved",
-        createdAt: serverTimestamp(),
+      const q = query(collection(db, "staff"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const staffList: FacultyItem[] = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<FacultyItem, "id">),
+        }));
+        setFacultyMembers(staffList);
       });
-
-      setStatusMessage({ type: "success", text: `Admin privilege pre-assigned to ${newAdminEmail}.` });
-      setNewAdminEmail("");
-      setNewAdminName("");
-    } catch (err: any) {
-      setStatusMessage({ type: "error", text: "Failed to assign admin role." });
-    } finally {
-      setSubmitting(false);
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error fetching staff records:", error);
     }
-  };
+  }, []);
 
-  const handleNoticeSubmit = async (e: React.FormEvent) => {
+  // Handle staff addition
+  const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    setStatusMessage(null);
-
-    try {
-      await addDoc(collection(db, "notices"), {
-        ...noticeData,
-        publishedAt: serverTimestamp(),
-        authorEmail: user?.email,
-      });
-
-      setStatusMessage({ type: "success", text: "Department notice published successfully." });
-      setNoticeData({ title: "", category: "General", content: "", isPublic: true });
-    } catch (err: any) {
-      setStatusMessage({ type: "error", text: err.message || "Failed to publish notice." });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleEventSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setStatusMessage(null);
-
-    try {
-      await addDoc(collection(db, "events"), {
-        ...eventData,
-        isUpcoming: true,
-        createdAt: serverTimestamp(),
-        authorEmail: user?.email,
-      });
-
-      setStatusMessage({ type: "success", text: "Calendar event scheduled successfully." });
-      setEventData({ title: "", date: "", time: "", venue: "", resourcePerson: "", description: "" });
-    } catch (err: any) {
-      setStatusMessage({ type: "error", text: err.message || "Failed to schedule event." });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleGallerySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!galleryFile) {
-      setStatusMessage({ type: "error", text: "Please select an image file to upload." });
+    if (!formData.name || !formData.designation || !formData.email) {
+      alert("Name, Designation, and Email are required.");
       return;
     }
 
     setSubmitting(true);
-    setStatusMessage(null);
-
     try {
-      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "ixvakf7c";
-      const preset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "st_xavier_preset";
-
-      const formData = new FormData();
-      formData.append("file", galleryFile);
-      formData.append("upload_preset", preset);
-
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: "POST",
-        body: formData,
+      await addDoc(collection(db, "staff"), {
+        ...formData,
+        authorEmail: user?.email || "admin",
+        createdAt: new Date().toISOString(),
       });
 
-      if (!res.ok) {
-        throw new Error("Cloudinary image upload failed.");
-      }
-
-      const uploadResult = await res.json();
-
-      await addDoc(collection(db, "gallery"), {
-        title: galleryTitle,
-        category: galleryCategory,
-        imageUrl: uploadResult.secure_url,
-        uploadedAt: serverTimestamp(),
-        authorEmail: user?.email,
-        authorName: profile?.name || "Faculty Admin",
-        status: "approved",
+      setFormData({
+        name: "",
+        designation: "",
+        qualification: "",
+        specialization: "",
+        email: "",
+        officeRoom: "",
       });
-
-      setStatusMessage({ type: "success", text: "Gallery photo uploaded and published directly." });
-      setGalleryTitle("");
-      setGalleryFile(null);
+      alert("Faculty profile published! It is now live on the public Faculty Directory.");
     } catch (err: any) {
-      setStatusMessage({ type: "error", text: err.message || "Failed to upload image." });
+      console.error("Failed to add profile:", err);
+      alert("Error publishing profile: " + err.message);
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading || !user || profile?.role !== "admin") {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
-        Verifying administrator credentials...
-      </div>
-    );
-  }
+  // Handle staff removal
+  const handleDeleteStaff = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to remove ${name} from the public directory?`)) return;
+    try {
+      await deleteDoc(doc(db, "staff", id));
+      alert(`${name} removed successfully.`);
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+      alert("Failed to delete record: " + err.message);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        
-        {/* Header Bar */}
-        <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-widest bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/20">
-              Administrative Control Center
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">Department Management</h1>
-            <p className="text-xs text-slate-400">
-              Department of Social Work | St. Xavier College, Maram Khunou
-            </p>
+    <div className="min-h-screen bg-slate-950 text-white selection:bg-amber-500 selection:text-slate-950 pb-20">
+      
+      {/* Admin Top Header */}
+      <div className="border-b border-slate-800 bg-slate-900/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Administrative Control Center</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white">
+                Department Management Portal
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                Manage public directory entries, circulars, and departmental records.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Link
+                href="/staff"
+                target="_blank"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-700 text-xs font-semibold transition"
+              >
+                <Users className="w-4 h-4 text-amber-400" />
+                <span>View Live Directory</span>
+              </Link>
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold transition"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Dashboard</span>
+              </Link>
+            </div>
           </div>
 
-          {/* Tab Selector */}
-          <div className="flex flex-wrap rounded-xl bg-slate-950 p-1 border border-slate-800 gap-1 text-xs">
+          {/* Tab Navigation */}
+          <div className="flex items-center gap-2 mt-8">
             <button
-              onClick={() => { setActiveTab("notice"); setStatusMessage(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                activeTab === "notice" ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-slate-200"
+              onClick={() => setActiveTab("staff")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === "staff"
+                  ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/10"
+                  : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
               }`}
             >
-              <Bell className="w-3.5 h-3.5" />
-              Notices
-            </button>
-            <button
-              onClick={() => { setActiveTab("event"); setStatusMessage(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                activeTab === "event" ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              Events
-            </button>
-            <button
-              onClick={() => { setActiveTab("gallery"); setStatusMessage(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                activeTab === "gallery" ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              Gallery
-            </button>
-            <button
-              onClick={() => { setActiveTab("approvals"); setStatusMessage(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                activeTab === "approvals" ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              Approvals {pendingPhotos.length + pendingStudents.length > 0 && `(${pendingPhotos.length + pendingStudents.length})`}
-            </button>
-            <button
-              onClick={() => { setActiveTab("admins"); setStatusMessage(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                activeTab === "admins" ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Admins
+              <Users className="w-4 h-4" />
+              <span>Faculty Directory</span>
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-slate-950/20 text-[10px]">
+                {facultyMembers.length}
+              </span>
             </button>
           </div>
         </div>
+      </div>
 
-        {statusMessage && (
-          <div
-            className={`p-4 rounded-xl flex items-center gap-3 text-xs font-medium border ${
-              statusMessage.type === "success"
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                : "bg-rose-500/10 border-rose-500/30 text-rose-400"
-            }`}
-          >
-            {statusMessage.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-            {statusMessage.text}
-          </div>
-        )}
-
-        {/* Tab 1: Notices Form */}
-        {activeTab === "notice" && (
-          <form onSubmit={handleNoticeSubmit} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
-            <h2 className="text-lg font-bold text-white">Publish Notice or Announcement</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Notice Title</label>
-                <input
-                  type="text"
-                  required
-                  value={noticeData.title}
-                  onChange={(e) => setNoticeData({ ...noticeData, title: e.target.value })}
-                  placeholder="e.g., Rural Exposure Camp Schedule"
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-                />
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        
+        {activeTab === "staff" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* Left Form: Add / Register Profile */}
+            <div className="lg:col-span-5 rounded-3xl bg-slate-900/60 border border-slate-800 p-6 sm:p-8">
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <PlusCircle className="w-5 h-5 text-amber-400" />
+                  <span>Add Faculty Profile</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Fill out this form to immediately add yourself or a colleague to the public directory.
+                </p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+              <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Category</label>
-                  <select
-                    value={noticeData.category}
-                    onChange={(e) => setNoticeData({ ...noticeData, category: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none"
-                  >
-                    <option value="General">General</option>
-                    <option value="Fieldwork">Fieldwork</option>
-                    <option value="Examination">Examination</option>
-                    <option value="Academic">Academic</option>
-                  </select>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Full Name & Honorific *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Dr. L. Timothy"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
+                  />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Visibility</label>
-                  <div className="flex items-center gap-4 h-[42px] px-3 bg-slate-950 border border-slate-800 rounded-xl">
-                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={noticeData.isPublic}
-                        onChange={(e) => setNoticeData({ ...noticeData, isPublic: e.target.checked })}
-                        className="rounded border-slate-700 bg-slate-900 text-amber-500"
-                      />
-                      Make Publicly Visible
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Designation / Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Assistant Professor & Head of Department"
+                    value={formData.designation}
+                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">
+                      Academic Degrees
                     </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. MSW, Ph.D., UGC-NET"
+                      value={formData.qualification}
+                      onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">
+                      Official Email *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. hod.sw@stxaviers.edu.in"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
+                    />
                   </div>
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Notice Content</label>
-                <textarea
-                  rows={5}
-                  required
-                  value={noticeData.content}
-                  onChange={(e) => setNoticeData({ ...noticeData, content: e.target.value })}
-                  placeholder="Enter full notice body..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500 resize-none"
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md disabled:opacity-50"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Publish Notice
-            </button>
-          </form>
-        )}
 
-        {/* Tab 2: Events Form */}
-        {activeTab === "event" && (
-          <form onSubmit={handleEventSubmit} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
-            <h2 className="text-lg font-bold text-white">Schedule Department Event</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Event Title</label>
-                <input
-                  type="text"
-                  required
-                  value={eventData.title}
-                  onChange={(e) => setEventData({ ...eventData, title: e.target.value })}
-                  placeholder="e.g., Social Casework Practical Workshop"
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={eventData.date}
-                    onChange={(e) => setEventData({ ...eventData, date: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Time</label>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Specialization & Research Focus
+                  </label>
                   <input
                     type="text"
-                    value={eventData.time}
-                    onChange={(e) => setEventData({ ...eventData, time: e.target.value })}
-                    placeholder="e.g., 10:00 AM - 1:00 PM"
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100"
+                    placeholder="e.g. Community Development & Field Practicum"
+                    value={formData.specialization}
+                    onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
                   />
                 </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Venue</label>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Office Desk / Cabin Location
+                  </label>
                   <input
                     type="text"
-                    required
-                    value={eventData.venue}
-                    onChange={(e) => setEventData({ ...eventData, venue: e.target.value })}
-                    placeholder="e.g., AV Hall"
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100"
+                    placeholder="e.g. Academic Block A, Room 204"
+                    value={formData.officeRoom}
+                    onChange={(e) => setFormData({ ...formData, officeRoom: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Resource Person</label>
-                  <input
-                    type="text"
-                    value={eventData.resourcePerson}
-                    onChange={(e) => setEventData({ ...eventData, resourcePerson: e.target.value })}
-                    placeholder="e.g., Guest Speaker"
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Event Description</label>
-                <textarea
-                  rows={4}
-                  required
-                  value={eventData.description}
-                  onChange={(e) => setEventData({ ...eventData, description: e.target.value })}
-                  placeholder="Outline objectives and details..."
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 resize-none"
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md disabled:opacity-50"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Save Event
-            </button>
-          </form>
-        )}
 
-        {/* Tab 3: Gallery Upload Form */}
-        {activeTab === "gallery" && (
-          <form onSubmit={handleGallerySubmit} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-white">Upload to Department Gallery (Direct)</h2>
-              <p className="text-xs text-slate-400">
-                Photos uploaded here by administrators are published directly to the public gallery without pending moderation.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Photo Title / Caption</label>
-                <input
-                  type="text"
-                  required
-                  value={galleryTitle}
-                  onChange={(e) => setGalleryTitle(e.target.value)}
-                  placeholder="e.g., Community Rural Camp Inauguration"
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Category</label>
-                <select
-                  value={galleryCategory}
-                  onChange={(e) => setGalleryCategory(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none"
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition shadow-lg shadow-amber-500/10 disabled:opacity-50 mt-2"
                 >
-                  <option value="Fieldwork">Fieldwork & Rural Camp</option>
-                  <option value="Workshops">Workshops & Seminars</option>
-                  <option value="Cultural">Cultural & Celebrations</option>
-                  <option value="Campus">Campus Life</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Choose Image</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  required
-                  onChange={(e) => setGalleryFile(e.target.files ? e.target.files[0] : null)}
-                  className="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer"
-                />
-              </div>
+                  {submitting ? "Publishing..." : "Publish to Public Faculty Page"}
+                </button>
+              </form>
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md disabled:opacity-50"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Uploading to Cloudinary...
-                </>
-              ) : (
-                <>
-                  <UploadCloud className="w-4 h-4" />
-                  Publish Photo
-                </>
-              )}
-            </button>
-          </form>
-        )}
-
-        {/* Tab 4: Approvals Queue (Students & Photos) */}
-        {activeTab === "approvals" && (
-          <div className="space-y-8">
-            {/* 4A: Student Photo Submissions */}
-            <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
+            {/* Right List: Currently Published Faculty Profiles */}
+            <div className="lg:col-span-7 space-y-4">
               <div>
-                <h2 className="text-lg font-bold text-white">Pending Photo Submissions</h2>
+                <h2 className="text-lg font-bold text-white">
+                  Active Directory Profiles ({facultyMembers.length})
+                </h2>
                 <p className="text-xs text-slate-400">
-                  Review student photos before approving them to appear on the public department gallery.
+                  These profiles are currently visible to all students and visitors on `/staff`.
                 </p>
               </div>
 
-              {loadingApprovals ? (
-                <div className="flex items-center justify-center p-8 text-xs text-slate-400 gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
-                  Loading pending items...
-                </div>
-              ) : pendingPhotos.length === 0 ? (
-                <div className="p-6 text-center rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-xs">
-                  No photos pending approval.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {pendingPhotos.map((photo) => (
-                    <div key={photo.id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
-                      <div className="aspect-video w-full rounded-lg overflow-hidden bg-slate-900 border border-slate-800 relative">
-                        <img src={photo.imageUrl} alt={photo.title} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm text-white">{photo.title}</span>
-                          <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">
-                            {photo.category}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500">Submitted by: {photo.authorName || photo.authorEmail}</p>
-                      </div>
-                      <div className="flex items-center gap-2 pt-2">
-                        <button
-                          onClick={() => handleApprovePhoto(photo.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleRejectPhoto(photo.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 4B: Student Account Registrations */}
-            <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
-              <div>
-                <h2 className="text-lg font-bold text-white">Student Registration Queue</h2>
-                <p className="text-xs text-slate-400">
-                  Verify students to grant them dashboard and resource access.
-                </p>
-              </div>
-
-              {pendingStudents.length === 0 ? (
-                <div className="p-6 text-center rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-xs">
-                  No pending student registrations.
+              {facultyMembers.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-slate-900/30 border border-dashed border-slate-800 text-center text-xs text-slate-400">
+                  No dynamic faculty records in Firestore yet. Submit the form on the left to add your first profile.
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {pendingStudents.map((student) => (
+                  {facultyMembers.map((member) => (
                     <div
-                      key={student.id}
-                      className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      key={member.id}
+                      className="flex items-center justify-between p-4 sm:p-5 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-slate-700 transition"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-white">{student.name}</span>
-                          <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-amber-400 border border-slate-700">
-                            Roll: {student.rollNumber}
+                          <span className="text-sm font-bold text-white">{member.name}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-semibold border border-emerald-500/20">
+                            Live
                           </span>
                         </div>
-                        <p className="text-xs text-slate-400">{student.email}</p>
+                        <p className="text-xs text-amber-400">{member.designation}</p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400 pt-1">
+                          <span className="flex items-center gap-1">
+                            <GraduationCap className="w-3.5 h-3.5 text-slate-500" />
+                            {member.qualification || "Not specified"}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Mail className="w-3.5 h-3.5 text-slate-500" />
+                            {member.email}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleApproveStudent(student.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold"
-                        >
-                          <UserCheck className="w-3.5 h-3.5" />
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleRejectStudent(student.id)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold"
-                        >
-                          <UserX className="w-3.5 h-3.5" />
-                          Reject
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleDeleteStaff(member.id, member.name)}
+                        className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition shrink-0 ml-3"
+                        title="Remove Profile"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
           </div>
-        )}
-
-        {/* Tab 5: Add New Faculty Admin */}
-        {activeTab === "admins" && (
-          <form onSubmit={handleAddAdmin} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-white">Authorize New Administrator</h2>
-              <p className="text-xs text-slate-400">
-                Grant admin permissions to new department professors or coordinators.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Professor Name</label>
-                <input
-                  type="text"
-                  value={newAdminName}
-                  onChange={(e) => setNewAdminName(e.target.value)}
-                  placeholder="e.g., Dr. Mary"
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Official Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={newAdminEmail}
-                  onChange={(e) => setNewAdminEmail(e.target.value)}
-                  placeholder="professor@gmail.com"
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md disabled:opacity-50"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-              Grant Admin Access
-            </button>
-          </form>
         )}
 
       </div>
