@@ -4,47 +4,28 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { 
   User, 
   onAuthStateChanged, 
-  signOut as firebaseSignOut,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut 
 } from "firebase/auth";
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  serverTimestamp 
-} from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
-export interface UserProfile {
-  uid?: string;
+interface UserProfile {
+  name: string;
   email: string;
-  name?: string;
-  rollNumber?: string;
-  semester?: string;
-  academicYear?: string;
   role: "admin" | "student";
-  status?: "pending" | "approved" | "rejected";
-  createdAt?: any;
+  status: "approved" | "pending";
+  rollNumber?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
-  registerStudent: (
-    email: string, 
-    pass: string, 
-    name: string, 
-    rollNumber: string,
-    semester: string,
-    academicYear: string
-  ) => Promise<void>;
+  signInWithEmail: (email: string, pass: string) => Promise<any>;
+  registerWithEmail: (email: string, pass: string, name: string, roll: string) => Promise<any>;
+  logOut: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -52,12 +33,13 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
-  login: async () => {},
-  registerStudent: async () => {},
+  signInWithEmail: async () => {},
+  registerWithEmail: async () => {},
+  logOut: async () => {},
   logout: async () => {},
 });
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,40 +47,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-
-      if (currentUser && currentUser.email) {
+      if (currentUser) {
         try {
-          const userDocRef = doc(db, "users", currentUser.uid);
-          const userSnap = await getDoc(userDocRef);
-
-          if (userSnap.exists()) {
-            setProfile(userSnap.data() as UserProfile);
+          const docRef = doc(db, "users", currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setProfile(docSnap.data() as UserProfile);
           } else {
-            const usersRef = collection(db, "users");
-            const q = query(usersRef, where("email", "==", currentUser.email.toLowerCase().trim()));
-            const querySnap = await getDocs(q);
-
-            if (!querySnap.empty) {
-              const matchedData = querySnap.docs[0].data() as UserProfile;
-              await setDoc(userDocRef, {
-                ...matchedData,
-                email: currentUser.email.toLowerCase().trim(),
-                status: "approved",
-                updatedAt: serverTimestamp(),
-              });
-              setProfile({ ...matchedData, status: "approved" });
-            } else {
-              const defaultStudent: UserProfile = {
-                uid: currentUser.uid,
-                email: currentUser.email.toLowerCase().trim(),
-                name: currentUser.displayName || "Student",
-                role: "student",
-                status: "pending",
-                createdAt: serverTimestamp(),
-              };
-              await setDoc(userDocRef, defaultStudent);
-              setProfile(defaultStudent);
-            }
+            setProfile(null);
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
@@ -107,52 +63,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         setProfile(null);
       }
-
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const login = async (email: string, pass: string) => {
-    await signInWithEmailAndPassword(auth, email.trim(), pass);
+  const signInWithEmail = async (email: string, pass: string) => {
+    return signInWithEmailAndPassword(auth, email, pass);
   };
 
-  const registerStudent = async (
-    email: string, 
-    pass: string, 
-    name: string, 
-    rollNumber: string,
-    semester: string,
-    academicYear: string
-  ) => {
-    const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
-    const newStudentProfile: UserProfile = {
-      uid: cred.user.uid,
-      email: email.toLowerCase().trim(),
+  const registerWithEmail = async (email: string, pass: string, name: string, rollNumber: string) => {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await setDoc(doc(db, "users", cred.user.uid), {
       name,
+      email,
       rollNumber,
-      semester,
-      academicYear,
       role: "student",
       status: "pending",
       createdAt: serverTimestamp(),
-    };
-    await setDoc(doc(db, "users", cred.user.uid), newStudentProfile);
-    setProfile(newStudentProfile);
+    });
+    return cred;
   };
 
-  const logout = async () => {
-    await firebaseSignOut(auth);
-    setUser(null);
-    setProfile(null);
+  const logOut = async () => {
+    await signOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, registerStudent, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        signInWithEmail,
+        registerWithEmail,
+        logOut,
+        logout: logOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
 export const useAuth = () => useContext(AuthContext);
