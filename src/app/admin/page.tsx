@@ -24,7 +24,8 @@ import {
   UploadCloud,
   Bell,
   Calendar,
-  AlertCircle
+  Image as ImageIcon,
+  CheckCircle2
 } from "lucide-react";
 
 interface FacultyItem {
@@ -37,7 +38,6 @@ interface FacultyItem {
   phone?: string;
   officeRoom?: string;
   photoUrl?: string;
-  createdAt?: string;
 }
 
 interface NoticeItem {
@@ -48,14 +48,23 @@ interface NoticeItem {
   attachmentUrl?: string;
   isImportant: boolean;
   date: string;
-  createdAt?: string;
+}
+
+interface GalleryItem {
+  id: string;
+  title: string;
+  category: "Rural Camp" | "Fieldwork" | "Workshops" | "Community";
+  caption?: string;
+  imageUrl: string;
+  date?: string;
 }
 
 export default function AdminPortalPage() {
   const { user } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const staffFileInputRef = useRef<HTMLInputElement>(null);
+  const galleryFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<"staff" | "notices">("staff");
+  const [activeTab, setActiveTab] = useState<"staff" | "notices" | "gallery">("staff");
 
   // Faculty State
   const [facultyMembers, setFacultyMembers] = useState<FacultyItem[]>([]);
@@ -84,67 +93,107 @@ export default function AdminPortalPage() {
     date: new Date().toISOString().split("T")[0],
   });
 
-  // Listen to 'staff' collection
+  // Gallery State
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [submittingGallery, setSubmittingGallery] = useState(false);
+  const [galleryPhotoPreview, setGalleryPhotoPreview] = useState<string>("");
+  const [galleryForm, setGalleryForm] = useState({
+    title: "",
+    category: "Fieldwork" as "Rural Camp" | "Fieldwork" | "Workshops" | "Community",
+    caption: "",
+    imageUrl: "",
+    date: new Date().toISOString().split("T")[0],
+  });
+
+  // Listen to 'staff'
   useEffect(() => {
     try {
-      const q = query(collection(db, "staff"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const staffList: FacultyItem[] = snapshot.docs.map((d) => ({
+      const unsubscribe = onSnapshot(query(collection(db, "staff")), (snapshot) => {
+        const list: FacultyItem[] = snapshot.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<FacultyItem, "id">),
         }));
-        setFacultyMembers(staffList);
+        setFacultyMembers(list);
       });
       return () => unsubscribe();
-    } catch (error) {
-      console.error("Error fetching staff records:", error);
+    } catch (err) {
+      console.error("Staff fetch error:", err);
     }
   }, []);
 
-  // Listen to 'notices' collection
+  // Listen to 'notices'
   useEffect(() => {
     try {
-      const q = query(collection(db, "notices"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const noticeList: NoticeItem[] = snapshot.docs.map((d) => ({
+      const unsubscribe = onSnapshot(query(collection(db, "notices")), (snapshot) => {
+        const list: NoticeItem[] = snapshot.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<NoticeItem, "id">),
         }));
-        setNotices(noticeList);
+        setNotices(list);
       });
       return () => unsubscribe();
-    } catch (error) {
-      console.error("Error fetching notices:", error);
+    } catch (err) {
+      console.error("Notices fetch error:", err);
     }
   }, []);
 
-  // Handle Photo Selection
+  // Listen to 'gallery'
+  useEffect(() => {
+    try {
+      const unsubscribe = onSnapshot(query(collection(db, "gallery")), (snapshot) => {
+        const list: GalleryItem[] = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<GalleryItem, "id">),
+        }));
+        setGalleryItems(list);
+      });
+      return () => unsubscribe();
+    } catch (err) {
+      console.error("Gallery fetch error:", err);
+    }
+  }, []);
+
+  // Handle Faculty Photo
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (file.size > 2 * 1024 * 1024) {
-      alert("Image is too large. Please select a photo smaller than 2MB.");
+      alert("Image is too large. Choose an image under 2MB.");
       return;
     }
-
     const reader = new FileReader();
     reader.onloadend = () => {
-      const base64String = reader.result as string;
-      setPhotoPreview(base64String);
-      setFacultyForm((prev) => ({ ...prev, photoUrl: base64String }));
+      const base64 = reader.result as string;
+      setPhotoPreview(base64);
+      setFacultyForm((prev) => ({ ...prev, photoUrl: base64 }));
     };
     reader.readAsDataURL(file);
   };
 
-  // Submit Faculty Profile
+  // Handle Gallery Photo
+  const handleGalleryPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2.5 * 1024 * 1024) {
+      alert("Image is too large. Please select a photo under 2.5MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      setGalleryPhotoPreview(base64);
+      setGalleryForm((prev) => ({ ...prev, imageUrl: base64 }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Submit Faculty
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!facultyForm.name || !facultyForm.designation || !facultyForm.email) {
-      alert("Please fill in Name, Designation, and Email.");
+      alert("Name, Designation, and Email are required.");
       return;
     }
-
     setSubmittingStaff(true);
     try {
       await addDoc(collection(db, "staff"), {
@@ -152,7 +201,6 @@ export default function AdminPortalPage() {
         authorEmail: user?.email || "admin",
         createdAt: new Date().toISOString(),
       });
-
       setFacultyForm({
         name: "",
         designation: "",
@@ -164,24 +212,12 @@ export default function AdminPortalPage() {
         photoUrl: "",
       });
       setPhotoPreview("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (staffFileInputRef.current) staffFileInputRef.current.value = "";
       alert("Faculty profile published successfully!");
     } catch (err: any) {
-      console.error("Failed to add profile:", err);
-      alert("Error publishing profile: " + err.message);
+      alert("Error: " + err.message);
     } finally {
       setSubmittingStaff(false);
-    }
-  };
-
-  // Delete Faculty Profile
-  const handleDeleteStaff = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove ${name} from the directory?`)) return;
-    try {
-      await deleteDoc(doc(db, "staff", id));
-      alert(`${name} removed successfully.`);
-    } catch (err: any) {
-      alert("Failed to delete record: " + err.message);
     }
   };
 
@@ -189,10 +225,9 @@ export default function AdminPortalPage() {
   const handleCreateNotice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!noticeForm.title || !noticeForm.description) {
-      alert("Please provide a title and description for the notice.");
+      alert("Title and description are required.");
       return;
     }
-
     setSubmittingNotice(true);
     try {
       await addDoc(collection(db, "notices"), {
@@ -200,7 +235,6 @@ export default function AdminPortalPage() {
         authorEmail: user?.email || "admin",
         createdAt: new Date().toISOString(),
       });
-
       setNoticeForm({
         title: "",
         category: "Academic",
@@ -209,29 +243,65 @@ export default function AdminPortalPage() {
         isImportant: false,
         date: new Date().toISOString().split("T")[0],
       });
-      alert("Notice published live on the Noticeboard!");
+      alert("Notice published!");
     } catch (err: any) {
-      alert("Error publishing notice: " + err.message);
+      alert("Error: " + err.message);
     } finally {
       setSubmittingNotice(false);
     }
   };
 
-  // Delete Notice
-  const handleDeleteNotice = async (id: string, title: string) => {
-    if (!confirm(`Are you sure you want to delete notice: "${title}"?`)) return;
-    try {
-      await deleteDoc(doc(db, "notices", id));
-      alert("Notice removed.");
-    } catch (err: any) {
-      alert("Failed to delete notice: " + err.message);
+  // Submit Gallery Photo
+  const handleCreateGallery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!galleryForm.title || !galleryForm.imageUrl) {
+      alert("Please choose a photo and enter a title.");
+      return;
     }
+    setSubmittingGallery(true);
+    try {
+      await addDoc(collection(db, "gallery"), {
+        ...galleryForm,
+        authorEmail: user?.email || "admin",
+        createdAt: new Date().toISOString(),
+      });
+      setGalleryForm({
+        title: "",
+        category: "Fieldwork",
+        caption: "",
+        imageUrl: "",
+        date: new Date().toISOString().split("T")[0],
+      });
+      setGalleryPhotoPreview("");
+      if (galleryFileInputRef.current) galleryFileInputRef.current.value = "";
+      alert("Photo added to the Gallery!");
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSubmittingGallery(false);
+    }
+  };
+
+  // Delete helpers
+  const handleDeleteStaff = async (id: string, name: string) => {
+    if (!confirm(`Delete ${name}?`)) return;
+    await deleteDoc(doc(db, "staff", id));
+  };
+
+  const handleDeleteNotice = async (id: string, title: string) => {
+    if (!confirm(`Delete notice: "${title}"?`)) return;
+    await deleteDoc(doc(db, "notices", id));
+  };
+
+  const handleDeleteGallery = async (id: string, title: string) => {
+    if (!confirm(`Delete picture: "${title}"?`)) return;
+    await deleteDoc(doc(db, "gallery", id));
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white selection:bg-amber-500 selection:text-slate-950 pb-20">
       
-      {/* Top Header */}
+      {/* Top Navigation */}
       <div className="border-b border-slate-800 bg-slate-900/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -244,7 +314,7 @@ export default function AdminPortalPage() {
                 Department Administrative Center
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Manage live faculty directories, publish circulars, and review records.
+                Manage live faculty directories, circulars, and fieldwork photo media.
               </p>
             </div>
 
@@ -254,16 +324,16 @@ export default function AdminPortalPage() {
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Back to Dashboard</span>
+                <span>Student Dashboard</span>
               </Link>
             </div>
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center gap-2 mt-8">
+          <div className="flex items-center gap-2 mt-8 overflow-x-auto pb-2">
             <button
               onClick={() => setActiveTab("staff")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
                 activeTab === "staff"
                   ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/10"
                   : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
@@ -275,7 +345,7 @@ export default function AdminPortalPage() {
 
             <button
               onClick={() => setActiveTab("notices")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
                 activeTab === "notices"
                   ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/10"
                   : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
@@ -284,13 +354,25 @@ export default function AdminPortalPage() {
               <Bell className="w-4 h-4" />
               <span>Notices & Circulars ({notices.length})</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab("gallery")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
+                activeTab === "gallery"
+                  ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/10"
+                  : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
+              }`}
+            >
+              <ImageIcon className="w-4 h-4" />
+              <span>Fieldwork Gallery ({galleryItems.length})</span>
+            </button>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         
-        {/* TAB 1: FACULTY MANAGEMENT */}
+        {/* TAB 1: FACULTY */}
         {activeTab === "staff" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-6 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
@@ -300,7 +382,7 @@ export default function AdminPortalPage() {
                   <span>Create Faculty Profile</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  Upload portrait and details to be showcased on `/staff`.
+                  Upload portrait and details to appear on `/staff`.
                 </p>
               </div>
 
@@ -310,7 +392,7 @@ export default function AdminPortalPage() {
                   <div className="flex items-center gap-4">
                     <div className="relative w-20 h-20 rounded-2xl bg-slate-950 border-2 border-dashed border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
                       {photoPreview ? (
-                        <img src={photoPreview} alt="Profile preview" className="w-full h-full object-cover" />
+                        <img src={photoPreview} alt="Profile" className="w-full h-full object-cover" />
                       ) : (
                         <Camera className="w-6 h-6 text-slate-500" />
                       )}
@@ -318,7 +400,7 @@ export default function AdminPortalPage() {
                     <div className="space-y-1.5">
                       <input
                         type="file"
-                        ref={fileInputRef}
+                        ref={staffFileInputRef}
                         accept="image/*"
                         onChange={handlePhotoUpload}
                         className="hidden"
@@ -331,7 +413,7 @@ export default function AdminPortalPage() {
                         <UploadCloud className="w-4 h-4 text-amber-400" />
                         <span>{photoPreview ? "Change Photo" : "Upload Picture"}</span>
                       </label>
-                      <p className="text-[10px] text-slate-500">Max 2MB. Square headshots look best.</p>
+                      <p className="text-[10px] text-slate-500">Max 2MB. Square headshot works best.</p>
                     </div>
                   </div>
                 </div>
@@ -371,7 +453,6 @@ export default function AdminPortalPage() {
                       className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
                     />
                   </div>
-
                   <div>
                     <label className="block text-slate-300 font-semibold mb-1">Official Email *</label>
                     <input
@@ -424,49 +505,42 @@ export default function AdminPortalPage() {
                   disabled={submittingStaff}
                   className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition disabled:opacity-50 mt-2"
                 >
-                  {submittingStaff ? "Uploading Profile..." : "Publish Profile to Live Directory"}
+                  {submittingStaff ? "Publishing Profile..." : "Publish Profile to Live Directory"}
                 </button>
               </form>
             </div>
 
             <div className="lg:col-span-6 space-y-3">
               <h2 className="text-lg font-bold text-white">Active Faculty Profiles ({facultyMembers.length})</h2>
-              {facultyMembers.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-center text-xs text-slate-400">
-                  No dynamic profiles in database.
-                </div>
-              ) : (
-                facultyMembers.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 overflow-hidden text-amber-400 font-bold">
-                        {member.photoUrl ? (
-                          <img src={member.photoUrl} alt={member.name} className="w-full h-full object-cover" />
-                        ) : (
-                          member.name.charAt(0)
-                        )}
-                      </div>
-                      <div>
-                        <span className="text-sm font-bold text-white block">{member.name}</span>
-                        <p className="text-xs text-amber-400">{member.designation}</p>
-                        <p className="text-[11px] text-slate-400">{member.email}</p>
-                      </div>
+              {facultyMembers.map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 overflow-hidden text-amber-400 font-bold">
+                      {member.photoUrl ? (
+                        <img src={member.photoUrl} alt={member.name} className="w-full h-full object-cover" />
+                      ) : (
+                        member.name.charAt(0)
+                      )}
                     </div>
-                    <button
-                      onClick={() => handleDeleteStaff(member.id, member.name)}
-                      className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition"
-                      title="Remove Profile"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div>
+                      <span className="text-sm font-bold text-white block">{member.name}</span>
+                      <p className="text-xs text-amber-400">{member.designation}</p>
+                      <p className="text-[11px] text-slate-400">{member.email}</p>
+                    </div>
                   </div>
-                ))
-              )}
+                  <button
+                    onClick={() => handleDeleteStaff(member.id, member.name)}
+                    className="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* TAB 2: NOTICES & CIRCULARS MANAGEMENT */}
+        {/* TAB 2: NOTICES */}
         {activeTab === "notices" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-5 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
@@ -475,9 +549,7 @@ export default function AdminPortalPage() {
                   <PlusCircle className="w-5 h-5 text-amber-400" />
                   <span>Publish Notice / Circular</span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Post departmental announcements and circulars directly to `/notices`.
-                </p>
+                <p className="text-xs text-slate-400 mt-1">Post announcements directly to `/notices`.</p>
               </div>
 
               <form onSubmit={handleCreateNotice} className="space-y-4 text-xs">
@@ -486,7 +558,7 @@ export default function AdminPortalPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Rural Camp Orientation Schedule"
+                    placeholder="e.g. Fieldwork Practicum Guidelines"
                     value={noticeForm.title}
                     onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
@@ -507,9 +579,8 @@ export default function AdminPortalPage() {
                       <option value="Urgent">Urgent Alert</option>
                     </select>
                   </div>
-
                   <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Publish Date</label>
+                    <label className="block text-slate-300 font-semibold mb-1">Date</label>
                     <input
                       type="date"
                       value={noticeForm.date}
@@ -520,11 +591,11 @@ export default function AdminPortalPage() {
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Notice Content / Details *</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Description *</label>
                   <textarea
                     required
                     rows={4}
-                    placeholder="Write the full announcement or instructions here..."
+                    placeholder="Announcement details..."
                     value={noticeForm.description}
                     onChange={(e) => setNoticeForm({ ...noticeForm, description: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
@@ -532,76 +603,207 @@ export default function AdminPortalPage() {
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Attachment / PDF Link (Optional)</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Attachment Link (Optional)</label>
                   <input
                     type="url"
-                    placeholder="https://drive.google.com/... or document link"
+                    placeholder="https://..."
                     value={noticeForm.attachmentUrl}
                     onChange={(e) => setNoticeForm({ ...noticeForm, attachmentUrl: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
                   />
                 </div>
 
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    id="isImportant"
+                    id="isImp"
                     checked={noticeForm.isImportant}
                     onChange={(e) => setNoticeForm({ ...noticeForm, isImportant: e.target.checked })}
-                    className="rounded border-slate-800 text-amber-500 focus:ring-0"
+                    className="rounded border-slate-800 text-amber-500"
                   />
-                  <label htmlFor="isImportant" className="text-slate-300 font-semibold cursor-pointer">
-                    Mark as Urgent / Priority Notice
+                  <label htmlFor="isImp" className="text-slate-300 font-semibold cursor-pointer">
+                    Urgent / High Priority
                   </label>
                 </div>
 
                 <button
                   type="submit"
                   disabled={submittingNotice}
-                  className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition disabled:opacity-50 mt-2"
+                  className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition disabled:opacity-50"
                 >
-                  {submittingNotice ? "Publishing..." : "Post to Public Noticeboard"}
+                  {submittingNotice ? "Publishing..." : "Post Notice"}
                 </button>
               </form>
             </div>
 
-            {/* Active Notices List */}
             <div className="lg:col-span-7 space-y-3">
               <h2 className="text-lg font-bold text-white">Live Notices ({notices.length})</h2>
-              {notices.length === 0 ? (
+              {notices.map((n) => (
+                <div key={n.id} className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-bold">
+                      {n.category}
+                    </span>
+                    <button
+                      onClick={() => handleDeleteNotice(n.id, n.title)}
+                      className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <h3 className="text-sm font-bold text-white">{n.title}</h3>
+                  <p className="text-xs text-slate-400">{n.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: GALLERY MANAGEMENT */}
+        {activeTab === "gallery" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* Form */}
+            <div className="lg:col-span-5 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <PlusCircle className="w-5 h-5 text-amber-400" />
+                  <span>Upload Fieldwork Photo</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Showcase grassroots immersion, camp activities, and practical sessions on `/gallery`.
+                </p>
+              </div>
+
+              <form onSubmit={handleCreateGallery} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-2">Select Image *</label>
+                  <div className="relative aspect-video rounded-2xl bg-slate-950 border-2 border-dashed border-slate-700 flex items-center justify-center overflow-hidden">
+                    {galleryPhotoPreview ? (
+                      <img src={galleryPhotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-center p-4 text-slate-500">
+                        <ImageIcon className="w-8 h-8 mx-auto mb-1 opacity-50" />
+                        <span>No image chosen yet</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-3">
+                    <input
+                      type="file"
+                      ref={galleryFileInputRef}
+                      accept="image/*"
+                      onChange={handleGalleryPhotoUpload}
+                      className="hidden"
+                      id="gallery-file"
+                    />
+                    <label
+                      htmlFor="gallery-file"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer font-semibold transition border border-slate-700"
+                    >
+                      <UploadCloud className="w-4 h-4 text-amber-400" />
+                      <span>{galleryPhotoPreview ? "Change Photo" : "Upload Picture"}</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500 ml-2">Under 2.5MB</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Title / Activity Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Rural Educational Camp 2026 – Community Survey"
+                    value={galleryForm.title}
+                    onChange={(e) => setGalleryForm({ ...galleryForm, title: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Category</label>
+                    <select
+                      value={galleryForm.category}
+                      onChange={(e) => setGalleryForm({ ...galleryForm, category: e.target.value as any })}
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="Fieldwork">Fieldwork</option>
+                      <option value="Rural Camp">Rural Camp</option>
+                      <option value="Workshops">Workshops</option>
+                      <option value="Community">Community Action</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Event Date</label>
+                    <input
+                      type="date"
+                      value={galleryForm.date}
+                      onChange={(e) => setGalleryForm({ ...galleryForm, date: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Caption / Description</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Brief description of the intervention or learning objective..."
+                    value={galleryForm.caption}
+                    onChange={(e) => setGalleryForm({ ...galleryForm, caption: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submittingGallery}
+                  className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition disabled:opacity-50 mt-2"
+                >
+                  {submittingGallery ? "Uploading..." : "Publish to Public Gallery"}
+                </button>
+              </form>
+            </div>
+
+            {/* Gallery Grid List */}
+            <div className="lg:col-span-7 space-y-4">
+              <h2 className="text-lg font-bold text-white">Live Gallery Photos ({galleryItems.length})</h2>
+              {galleryItems.length === 0 ? (
                 <div className="p-8 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-center text-xs text-slate-400">
-                  No notices posted yet. Use the form to publish your first announcement.
+                  No images uploaded yet. Submit the form to add your first photo.
                 </div>
               ) : (
-                notices.map((notice) => (
-                  <div key={notice.id} className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider">
-                          {notice.category}
-                        </span>
-                        {notice.isImportant && (
-                          <span className="px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px] font-bold">
-                            Urgent
-                          </span>
-                        )}
-                        <span className="text-[11px] text-slate-500">{notice.date}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {galleryItems.map((item) => (
+                    <div key={item.id} className="relative rounded-2xl bg-slate-900/60 border border-slate-800 overflow-hidden group">
+                      <div className="aspect-video w-full overflow-hidden bg-slate-950">
+                        <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                       </div>
-
-                      <button
-                        onClick={() => handleDeleteNotice(notice.id, notice.title)}
-                        className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="p-4 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-bold">
+                            {item.category}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteGallery(item.id, item.title)}
+                            className="p-1 rounded bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <h4 className="text-xs font-bold text-white truncate">{item.title}</h4>
+                        {item.caption && (
+                          <p className="text-[11px] text-slate-400 line-clamp-2">{item.caption}</p>
+                        )}
+                      </div>
                     </div>
-
-                    <h3 className="text-sm font-bold text-white">{notice.title}</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{notice.description}</p>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
+
           </div>
         )}
 
