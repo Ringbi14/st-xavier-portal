@@ -1,65 +1,168 @@
 import React from "react";
 import Link from "next/link";
-import { GraduationCap, MapPin, Mail, Phone, ShieldCheck } from "lucide-react";
+import Image from "next/image";
+import { 
+  Building2, 
+  MapPin, 
+  Mail, 
+  Phone, 
+  GraduationCap, 
+  Calendar, 
+  ArrowUpRight,
+  HeartHandshake,
+  ShieldCheck
+} from "lucide-react";
 
 export default function Footer() {
+  const currentYear = new Date().getFullYear();
+
+  const navigationLinks = [
+    { label: "Home", href: "/" },
+    { label: "About Department", href: "/about" },
+    { label: "Faculty Directory", href: "/staff" },
+    { label: "Notice Board", href: "/notices" },
+    { label: "Events & Schedules", href: "/events" },
+    { label: "Fieldwork Gallery", href: "/gallery" },
+    { label: "Student Dashboard", href: "/dashboard" },
+  ];
+
+  const resources = [
+    { label: "Concurrent Log Sheets", href: "/dashboard" },
+    { label: "Casework Process Records", href: "/dashboard" },
+    { label: "Rural Camp Rubric", href: "/dashboard" },
+    { label: "Academic Syllabus", href: "/dashboard" },
+    { label: "Faculty Portal Login", href: "/login" },
+  ];
+
   return (
-    <footer className="border-t border-slate-800 bg-slate-950 text-slate-400">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-          <div className="space-y-4 md:col-span-2">
+    <footer className="border-t border-slate-800 bg-slate-950 text-slate-400 text-xs">
+      {/* Top Footer Banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-12">
+          
+          {/* Col 1: Brand & College Info */}
+          <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-slate-950 font-bold">
-                <GraduationCap className="w-5 h-5 text-slate-950" />
+              <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 p-1 flex items-center justify-center shrink-0">
+                <Image
+                  src="/dept-logo.png"
+                  alt="Department Emblem"
+                  width={36}
+                  height={36}
+                  className="object-contain"
+                />
               </div>
-              <span className="text-base font-bold text-white">
-                Department of Social Work
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                  Department of Social Work
+                </h3>
+                <p className="text-[11px] text-amber-400 font-semibold">
+                  St. Xavier College, Maram Khunou
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Fostering transformational social work practitioners through intensive fieldwork immersion, community action, participatory research, and ethical praxis across Northeast India.
+            </p>
+
+            <div className="flex items-center gap-2 pt-2 text-slate-400">
+              <HeartHandshake className="w-4 h-4 text-amber-400" />
+              <span className="text-[11px] font-medium text-slate-300">
+                Affiliated to Manipur University
               </span>
             </div>
-            <p className="text-sm text-slate-400 leading-relaxed max-w-md">
-              St. Xavier College, Maram Khunou, Senapati, Manipur. Dedicated to excellence in social work education, community engagement, professional ethics, and transformative field practice.
-            </p>
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
-              Quick Navigation
+          {/* Col 2: Academic Shortcuts */}
+          <div className="lg:col-span-2 space-y-3">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+              Quick Links
             </h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/about" className="hover:text-amber-400 transition-colors">About the Department</Link></li>
-              <li><Link href="/staff" className="hover:text-amber-400 transition-colors">Faculty Directory</Link></li>
-              <li><Link href="/events" className="hover:text-amber-400 transition-colors">Department Events</Link></li>
-              <li><Link href="/notices" className="hover:text-amber-400 transition-colors">Notices & Circulars</Link></li>
-              <li><Link href="/gallery" className="hover:text-amber-400 transition-colors">Department Gallery</Link></li>
+            <ul className="space-y-2">
+              {navigationLinks.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className="hover:text-amber-400 transition inline-flex items-center gap-1 group"
+                  >
+                    <span>{link.label}</span>
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
-              Campus Location
+          {/* Col 3: Practicum & Downloads */}
+          <div className="lg:col-span-3 space-y-3">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+              Field Practicum Desk
             </h4>
-            <ul className="space-y-2.5 text-sm">
-              <li className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-amber-500 mt-1 flex-shrink-0" />
-                <span>St. Xavier College, Maram Khunou, Senapati District, Manipur - 795105</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                <span>[ADD OFFICIAL DEPARTMENT EMAIL]</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                <span>[ADD OFFICIAL CONTACT NUMBER]</span>
-              </li>
+            <ul className="space-y-2">
+              {resources.map((res) => (
+                <li key={res.label}>
+                  <Link
+                    href={res.href}
+                    className="hover:text-amber-400 transition inline-flex items-center gap-1 group"
+                  >
+                    <span>{res.label}</span>
+                    <ArrowUpRight className="w-3 h-3 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
+
+          {/* Col 4: Contact & Office */}
+          <div className="lg:col-span-3 space-y-3">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+              Department Office
+            </h4>
+            <div className="space-y-2.5 text-xs">
+              <div className="flex items-start gap-2.5">
+                <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <span className="leading-snug">
+                  St. Xavier College, Maram Khunou, Senapati District, Manipur – 795105
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-amber-400 shrink-0" />
+                <a href="mailto:socialwork@stxaviers.edu.in" className="hover:text-amber-400 transition">
+                  socialwork@stxaviers.edu.in
+                </a>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Office: Mon – Fri (9:00 AM – 4:00 PM)</span>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300 hover:text-amber-400 hover:border-amber-500/40 transition"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span>Faculty Administration Access</span>
+              </Link>
+            </div>
+          </div>
+
         </div>
+      </div>
 
-        <div className="pt-8 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>© {new Date().getFullYear()} Department of Social Work, St. Xavier College. All rights reserved.</p>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-amber-500" />
-            <span>Digital Portal</span>
+      {/* Bottom Legal / Copyright Bar */}
+      <div className="border-t border-slate-900 bg-slate-950 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+          <p>
+            © {currentYear} Department of Social Work, St. Xavier College, Maram Khunou. All rights reserved.
+          </p>
+          <div className="flex items-center gap-4">
+            <Link href="/about" className="hover:text-slate-400 transition">Institutional Profile</Link>
+            <span>•</span>
+            <Link href="/staff" className="hover:text-slate-400 transition">Faculty Directory</Link>
+            <span>•</span>
+            <Link href="/dashboard" className="hover:text-slate-400 transition">Student Portal</Link>
           </div>
         </div>
       </div>
