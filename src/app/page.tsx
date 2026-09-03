@@ -45,12 +45,12 @@ export default function Home() {
               <span>St. Xavier College, Maram Khunou</span>
             </div>
 
-            {/* Department Emblem (Placed directly above the heading) */}
-            <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-2xl bg-white p-2.5 shadow-2xl border-2 border-amber-500/30 flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-105">
+            {/* Department Emblem (Significantly Enlarged & Whitespace Cropped) */}
+            <div className="relative w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 rounded-3xl bg-white shadow-2xl border-2 border-amber-500/40 flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-105">
               <img
                 src="/dept-logo.png"
                 alt="Department of Social Work Emblem"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover scale-135 object-center"
               />
             </div>
 
