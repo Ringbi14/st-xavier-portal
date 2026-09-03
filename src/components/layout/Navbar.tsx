@@ -2,148 +2,174 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { 
-  Menu, 
-  X, 
-  GraduationCap, 
-  Lock, 
-  Bell, 
-  Calendar, 
-  Users, 
-  Image as ImageIcon,
-  Info,
-  Home,
-  LayoutDashboard
-} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-
-const NAV_LINKS = [
-  { name: "Home", href: "/", icon: Home },
-  { name: "About", href: "/about", icon: Info },
-  { name: "Faculty", href: "/staff", icon: Users },
-  { name: "Events", href: "/events", icon: Calendar },
-  { name: "Notices", href: "/notices", icon: Bell },
-  { name: "Gallery", href: "/gallery", icon: ImageIcon },
-];
+import { Menu, X, LayoutDashboard, ShieldCheck } from "lucide-react";
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navLinks = [
+    { name: "Home", href: "/" },
+    { name: "About", href: "/about" },
+    { name: "Faculty", href: "/staff" },
+    { name: "Events", href: "/events" },
+    { name: "Notices", href: "/notices" },
+    { name: "Gallery", href: "/gallery" },
+  ];
+
+  const isActive = (path: string) => {
+    if (path === "/" && pathname !== "/") return false;
+    return pathname.startsWith(path);
+  };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-amber-500/10 group-hover:scale-105 transition-transform">
-              <GraduationCap className="w-6 h-6 text-slate-950" />
+        <div className="flex items-center justify-between h-20">
+          
+          {/* Logo & Brand Header */}
+          <Link href="/" className="flex items-center gap-3.5 group">
+            <div className="flex items-center gap-2.5">
+              {/* College Logo */}
+              <div className="relative w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center shrink-0">
+                <Image
+                  src="/college-logo.png"
+                  alt="St. Xavier College Emblem"
+                  fill
+                  sizes="(max-width: 640px) 44px, 48px"
+                  className="object-contain"
+                  priority
+                />
+              </div>
+
+              {/* Elegant Vertical Divider */}
+              <div className="h-8 w-[1px] bg-slate-800 hidden sm:block" />
+
+              {/* Department Logo */}
+              <div className="relative w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center shrink-0">
+                <Image
+                  src="/dept-logo.png"
+                  alt="Department of Social Work Logo"
+                  fill
+                  sizes="(max-width: 640px) 44px, 48px"
+                  className="object-contain"
+                  priority
+                />
+              </div>
             </div>
+
+            {/* Department Text Heading */}
             <div className="flex flex-col">
-              <span className="text-xs font-semibold tracking-wider text-amber-500 uppercase">
+              <span className="text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase text-amber-400 group-hover:text-amber-300 transition-colors line-clamp-1">
                 St. Xavier College, Maram Khunou
               </span>
-              <span className="text-sm sm:text-base font-bold text-white tracking-tight">
+              <span className="text-sm sm:text-base font-extrabold text-white tracking-tight group-hover:text-slate-100 transition-colors leading-snug">
                 Department of Social Work
               </span>
             </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-            {NAV_LINKS.map((link) => {
-              const isActive = pathname === link.href;
-              return (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  className={`px-3 py-2 rounded-lg text-xs lg:text-sm font-medium transition-all ${
-                    isActive
-                      ? "text-amber-400 bg-amber-500/10 font-semibold"
-                      : "text-slate-300 hover:text-white hover:bg-slate-900"
-                  }`}
-                >
-                  {link.name}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="hidden md:flex items-center">
-            {user ? (
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs lg:text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-md shadow-amber-500/20 active:scale-95"
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                Dashboard
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs lg:text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-md shadow-amber-500/20 active:scale-95"
-              >
-                <Lock className="w-4 h-4" />
-                Member Login
-              </Link>
-            )}
-          </div>
-
-          <div className="flex md:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 focus:outline-none"
-            >
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {isOpen && (
-        <div className="md:hidden border-b border-slate-800 bg-slate-950 px-4 pt-2 pb-6 space-y-2">
-          {NAV_LINKS.map((link) => {
-            const Icon = link.icon;
-            const isActive = pathname === link.href;
-            return (
+          {/* Desktop Navigation Links */}
+          <div className="hidden lg:flex items-center gap-1 xl:gap-2">
+            {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
-                onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium ${
-                  isActive
-                    ? "bg-amber-500/10 text-amber-400 font-semibold"
-                    : "text-slate-300 hover:bg-slate-900 hover:text-white"
+                className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  isActive(link.href)
+                    ? "text-amber-400 bg-amber-500/10 border border-amber-500/20"
+                    : "text-slate-300 hover:text-white hover:bg-slate-900"
                 }`}
               >
-                <Icon className="w-4 h-4 text-amber-500/80" />
                 {link.name}
               </Link>
-            );
-          })}
-          <div className="pt-2">
-            {user ? (
+            ))}
+
+            {/* Portal Action Buttons */}
+            <div className="ml-3 pl-3 border-l border-slate-800 flex items-center gap-2">
+              {profile?.role === "admin" && (
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-850 text-amber-400 border border-amber-500/30 text-xs font-semibold transition-all shadow-sm"
+                >
+                  <ShieldCheck className="w-4 h-4 text-amber-400" />
+                  Admin
+                </Link>
+              )}
+
               <Link
-                href="/dashboard"
-                onClick={() => setIsOpen(false)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-md shadow-amber-500/20"
+                href={user ? "/dashboard" : "/login"}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all shadow-md hover:shadow-amber-500/10"
               >
-                <LayoutDashboard className="w-4 h-4" />
-                Dashboard
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                {user ? "Dashboard" : "Student Login"}
               </Link>
-            ) : (
-              <Link
-                href="/login"
-                onClick={() => setIsOpen(false)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-md shadow-amber-500/20"
-              >
-                <Lock className="w-4 h-4" />
-                Member Login
-              </Link>
-            )}
+            </div>
           </div>
+
+          {/* Mobile Hamburger Button */}
+          <div className="flex lg:hidden items-center gap-2">
+            <Link
+              href={user ? "/dashboard" : "/login"}
+              className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-xs font-bold shadow"
+            >
+              {user ? "Dashboard" : "Login"}
+            </Link>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle Navigation Menu"
+              className="p-2 rounded-xl bg-slate-900 text-slate-400 hover:text-white border border-slate-800 focus:outline-none"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Mobile Dropdown Menu */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden border-t border-slate-800/80 bg-slate-950/95 backdrop-blur-xl px-4 pt-3 pb-5 space-y-2">
+          {navLinks.map((link) => (
+            <Link
+              key={link.name}
+              href={link.href}
+              onClick={() => setMobileMenuOpen(false)}
+              className={`block px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
+                isActive(link.href)
+                  ? "text-amber-400 bg-amber-500/10 border border-amber-500/20"
+                  : "text-slate-300 hover:text-white hover:bg-slate-900"
+              }`}
+            >
+              {link.name}
+            </Link>
+          ))}
+
+          {profile?.role === "admin" && (
+            <Link
+              href="/admin"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 text-amber-400 border border-amber-500/20 text-xs font-semibold"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              Admin Center
+            </Link>
+          )}
+
+          <Link
+            href={user ? "/dashboard" : "/login"}
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold shadow mt-2"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            {user ? "Go to Dashboard" : "Student Login"}
+          </Link>
         </div>
       )}
-    </header>
+    </nav>
   );
 }
