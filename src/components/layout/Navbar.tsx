@@ -35,7 +35,7 @@ export default function Navbar() {
           <Link href="/" className="flex items-center gap-3.5 group">
             <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/95 p-1.5 shadow-sm border border-slate-700/60 flex items-center justify-center shrink-0 overflow-hidden group-hover:border-amber-500/50 transition">
               <Image
-                src="/dept-logo.png"
+                src="/dept-logo.jpg"
                 alt="Department of Social Work Logo"
                 fill
                 sizes="(max-width: 640px) 44px, 48px"
