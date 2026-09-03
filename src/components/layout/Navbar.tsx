@@ -31,13 +31,12 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           
-          {/* Brand Header */}
+          {/* Brand Header with Department Logo Only */}
           <Link href="/" className="flex items-center gap-3.5 group">
-            {/* St. Xavier College Emblem (Main Crest) */}
-            <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/95 p-1 shadow-sm border border-slate-700/60 flex items-center justify-center shrink-0 overflow-hidden group-hover:border-amber-500/50 transition">
+            <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/95 p-1.5 shadow-sm border border-slate-700/60 flex items-center justify-center shrink-0 overflow-hidden group-hover:border-amber-500/50 transition">
               <Image
-                src="/college-logo.png"
-                alt="St. Xavier College Emblem"
+                src="/dept-logo.png"
+                alt="Department of Social Work Logo"
                 fill
                 sizes="(max-width: 640px) 44px, 48px"
                 className="object-contain p-0.5"
@@ -45,28 +44,13 @@ export default function Navbar() {
               />
             </div>
 
-            {/* Department Text & Embedded Dept Logo */}
             <div className="flex flex-col justify-center">
               <span className="text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase text-amber-400 group-hover:text-amber-300 transition-colors line-clamp-1">
                 St. Xavier College, Maram Khunou
               </span>
-
-              <div className="flex items-center gap-2 mt-0.5">
-                {/* Department Emblem */}
-                <div className="relative w-5 h-5 rounded-full bg-white/95 p-0.5 shadow-sm border border-slate-700 shrink-0 overflow-hidden">
-                  <Image
-                    src="/dept-logo.png"
-                    alt="Department Emblem"
-                    fill
-                    sizes="20px"
-                    className="object-contain"
-                    priority
-                  />
-                </div>
-                <span className="text-sm sm:text-base font-extrabold text-white tracking-tight group-hover:text-slate-100 transition-colors leading-tight">
-                  Department of Social Work
-                </span>
-              </div>
+              <span className="text-sm sm:text-base font-extrabold text-white tracking-tight group-hover:text-slate-100 transition-colors leading-tight">
+                Department of Social Work
+              </span>
             </div>
           </Link>
 
