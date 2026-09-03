@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, addDoc, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
 import Link from "next/link";
 import { 
   Bell, 
@@ -13,8 +13,9 @@ import {
   ShieldCheck, 
   Download, 
   Loader2,
-  Calendar,
-  Image as ImageIcon
+  UploadCloud,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 
 interface Notice {
@@ -30,6 +31,13 @@ export default function DashboardPage() {
   const router = useRouter();
   const [notices, setNotices] = useState<Notice[]>([]);
   const [fetchingNotices, setFetchingNotices] = useState(true);
+
+  // Student Photo Upload State
+  const [photoTitle, setPhotoTitle] = useState("");
+  const [photoCategory, setPhotoCategory] = useState("Fieldwork");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -54,6 +62,61 @@ export default function DashboardPage() {
       loadNotices();
     }
   }, [user]);
+
+  const handleStudentUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!photoFile) {
+      setStatusMsg({ type: "error", text: "Please select an image to upload." });
+      return;
+    }
+
+    setUploading(true);
+    setStatusMsg(null);
+
+    try {
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "ixvakf7c";
+      const preset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "st_xavier_preset";
+
+      const formData = new FormData();
+      formData.append("file", photoFile);
+      formData.append("upload_preset", preset);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to upload image file.");
+      }
+
+      const uploadResult = await res.json();
+
+      await addDoc(collection(db, "gallery"), {
+        title: photoTitle,
+        category: photoCategory,
+        imageUrl: uploadResult.secure_url,
+        uploadedAt: serverTimestamp(),
+        authorEmail: user?.email,
+        authorName: profile?.name || user?.email?.split("@")[0] || "Student",
+        status: profile?.role === "admin" ? "approved" : "pending",
+      });
+
+      setStatusMsg({
+        type: "success",
+        text: profile?.role === "admin"
+          ? "Photo published directly to public gallery."
+          : "Photo submitted! It will appear on the public gallery once approved by faculty.",
+      });
+
+      setPhotoTitle("");
+      setPhotoFile(null);
+    } catch (err: any) {
+      setStatusMsg({ type: "error", text: err.message || "Failed to submit photo." });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   if (loading || !user) {
     return (
@@ -104,7 +167,90 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Private Notices */}
+        {/* Status Notification */}
+        {statusMsg && (
+          <div
+            className={`p-4 rounded-xl flex items-center gap-3 text-xs font-medium border ${
+              statusMsg.type === "success"
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                : "bg-rose-500/10 border-rose-500/30 text-rose-400"
+            }`}
+          >
+            {statusMsg.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+            {statusMsg.text}
+          </div>
+        )}
+
+        {/* Student Submission Card */}
+        <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
+          <div>
+            <h2 className="text-lg font-bold text-white">Contribute Fieldwork / Activity Photo</h2>
+            <p className="text-xs text-slate-400">
+              Share photos from rural camps, agency visits, or workshops. Submissions are reviewed before appearing on the public gallery.
+            </p>
+          </div>
+
+          <form onSubmit={handleStudentUpload} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Photo Title or Caption</label>
+              <input
+                type="text"
+                required
+                value={photoTitle}
+                onChange={(e) => setPhotoTitle(e.target.value)}
+                placeholder="e.g., PRA Exercise in Maram Khunou Village"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Category</label>
+                <select
+                  value={photoCategory}
+                  onChange={(e) => setPhotoCategory(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none"
+                >
+                  <option value="Fieldwork">Fieldwork & Rural Camp</option>
+                  <option value="Workshops">Workshops & Seminars</option>
+                  <option value="Cultural">Cultural & Celebrations</option>
+                  <option value="Campus">Campus Life</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Select Image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  required
+                  onChange={(e) => setPhotoFile(e.target.files ? e.target.files[0] : null)}
+                  className="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={uploading}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition disabled:opacity-50"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Submitting for Review...
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="w-4 h-4" />
+                  Submit Photo
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Notices */}
         <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
           <div className="flex items-center gap-2 text-white font-bold text-lg">
             <Bell className="w-5 h-5 text-amber-500" />

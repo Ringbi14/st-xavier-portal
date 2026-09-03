@@ -28,7 +28,9 @@ import {
   UserX,
   UserPlus,
   Image as ImageIcon,
-  UploadCloud
+  UploadCloud,
+  Check,
+  X
 } from "lucide-react";
 
 interface PendingStudent {
@@ -36,6 +38,16 @@ interface PendingStudent {
   name: string;
   email: string;
   rollNumber: string;
+  status: string;
+}
+
+interface PendingPhoto {
+  id: string;
+  title: string;
+  category: string;
+  imageUrl: string;
+  authorEmail: string;
+  authorName?: string;
   status: string;
 }
 
@@ -49,7 +61,8 @@ export default function AdminPage() {
 
   // Approvals State
   const [pendingStudents, setPendingStudents] = useState<PendingStudent[]>([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
+  const [loadingApprovals, setLoadingApprovals] = useState(false);
 
   // New Admin Form
   const [newAdminEmail, setNewAdminEmail] = useState("");
@@ -92,28 +105,38 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (activeTab === "approvals") {
-      fetchPendingStudents();
+      fetchApprovals();
     }
   }, [activeTab]);
 
-  const fetchPendingStudents = async () => {
-    setLoadingStudents(true);
+  const fetchApprovals = async () => {
+    setLoadingApprovals(true);
     try {
-      const q = query(collection(db, "users"), where("role", "==", "student"), where("status", "==", "pending"));
-      const snap = await getDocs(q);
-      const list = snap.docs.map((d) => ({
+      // 1. Fetch pending students
+      const qStudents = query(collection(db, "users"), where("role", "==", "student"), where("status", "==", "pending"));
+      const snapStudents = await getDocs(qStudents);
+      const studentList = snapStudents.docs.map((d) => ({
         id: d.id,
         ...d.data(),
       })) as PendingStudent[];
-      setPendingStudents(list);
+      setPendingStudents(studentList);
+
+      // 2. Fetch pending photos
+      const qPhotos = query(collection(db, "gallery"), where("status", "==", "pending"));
+      const snapPhotos = await getDocs(qPhotos);
+      const photoList = snapPhotos.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as PendingPhoto[];
+      setPendingPhotos(photoList);
     } catch (err: any) {
       console.error(err);
     } finally {
-      setLoadingStudents(false);
+      setLoadingApprovals(false);
     }
   };
 
-  const handleApprove = async (id: string) => {
+  const handleApproveStudent = async (id: string) => {
     try {
       await updateDoc(doc(db, "users", id), { status: "approved" });
       setPendingStudents((prev) => prev.filter((s) => s.id !== id));
@@ -123,13 +146,33 @@ export default function AdminPage() {
     }
   };
 
-  const handleReject = async (id: string) => {
+  const handleRejectStudent = async (id: string) => {
     try {
       await deleteDoc(doc(db, "users", id));
       setPendingStudents((prev) => prev.filter((s) => s.id !== id));
       setStatusMessage({ type: "success", text: "Student registration rejected." });
     } catch (err: any) {
       setStatusMessage({ type: "error", text: "Failed to reject registration." });
+    }
+  };
+
+  const handleApprovePhoto = async (id: string) => {
+    try {
+      await updateDoc(doc(db, "gallery", id), { status: "approved" });
+      setPendingPhotos((prev) => prev.filter((p) => p.id !== id));
+      setStatusMessage({ type: "success", text: "Photo approved and published to the gallery!" });
+    } catch (err: any) {
+      setStatusMessage({ type: "error", text: "Failed to approve photo." });
+    }
+  };
+
+  const handleRejectPhoto = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "gallery", id));
+      setPendingPhotos((prev) => prev.filter((p) => p.id !== id));
+      setStatusMessage({ type: "success", text: "Photo submission rejected and removed." });
+    } catch (err: any) {
+      setStatusMessage({ type: "error", text: "Failed to reject photo." });
     }
   };
 
@@ -235,9 +278,11 @@ export default function AdminPage() {
         imageUrl: uploadResult.secure_url,
         uploadedAt: serverTimestamp(),
         authorEmail: user?.email,
+        authorName: profile?.name || "Faculty Admin",
+        status: "approved",
       });
 
-      setStatusMessage({ type: "success", text: "Gallery photo uploaded and published successfully." });
+      setStatusMessage({ type: "success", text: "Gallery photo uploaded and published directly." });
       setGalleryTitle("");
       setGalleryFile(null);
     } catch (err: any) {
@@ -308,7 +353,7 @@ export default function AdminPage() {
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              Approvals
+              Approvals {pendingPhotos.length + pendingStudents.length > 0 && `(${pendingPhotos.length + pendingStudents.length})`}
             </button>
             <button
               onClick={() => { setActiveTab("admins"); setStatusMessage(null); }}
@@ -330,7 +375,7 @@ export default function AdminPage() {
                 : "bg-rose-500/10 border-rose-500/30 text-rose-400"
             }`}
           >
-            {statusMessage.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            {statusMessage.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
             {statusMessage.text}
           </div>
         )}
@@ -491,9 +536,9 @@ export default function AdminPage() {
         {activeTab === "gallery" && (
           <form onSubmit={handleGallerySubmit} className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
             <div>
-              <h2 className="text-lg font-bold text-white">Upload to Department Gallery</h2>
+              <h2 className="text-lg font-bold text-white">Upload to Department Gallery (Direct)</h2>
               <p className="text-xs text-slate-400">
-                Upload photos from field work, workshops, camps, and departmental events.
+                Photos uploaded here by administrators are published directly to the public gallery without pending moderation.
               </p>
             </div>
 
@@ -556,62 +601,116 @@ export default function AdminPage() {
           </form>
         )}
 
-        {/* Tab 4: Student Approvals Queue */}
+        {/* Tab 4: Approvals Queue (Students & Photos) */}
         {activeTab === "approvals" && (
-          <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
-            <div>
-              <h2 className="text-lg font-bold text-white">Student Verification Queue</h2>
-              <p className="text-xs text-slate-400">
-                Review registered students. Approved students gain access to circulars and internal academic resources.
-              </p>
+          <div className="space-y-8">
+            {/* 4A: Student Photo Submissions */}
+            <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-white">Pending Photo Submissions</h2>
+                <p className="text-xs text-slate-400">
+                  Review student photos before approving them to appear on the public department gallery.
+                </p>
+              </div>
+
+              {loadingApprovals ? (
+                <div className="flex items-center justify-center p-8 text-xs text-slate-400 gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                  Loading pending items...
+                </div>
+              ) : pendingPhotos.length === 0 ? (
+                <div className="p-6 text-center rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-xs">
+                  No photos pending approval.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {pendingPhotos.map((photo) => (
+                    <div key={photo.id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+                      <div className="aspect-video w-full rounded-lg overflow-hidden bg-slate-900 border border-slate-800 relative">
+                        <img src={photo.imageUrl} alt={photo.title} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-sm text-white">{photo.title}</span>
+                          <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">
+                            {photo.category}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">Submitted by: {photo.authorName || photo.authorEmail}</p>
+                      </div>
+                      <div className="flex items-center gap-2 pt-2">
+                        <button
+                          onClick={() => handleApprovePhoto(photo.id)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleRejectPhoto(photo.id)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {loadingStudents ? (
-              <div className="flex items-center justify-center p-8 text-xs text-slate-400 gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
-                Loading pending applications...
+            {/* 4B: Student Account Registrations */}
+            <div className="p-6 sm:p-8 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-white">Student Registration Queue</h2>
+                <p className="text-xs text-slate-400">
+                  Verify students to grant them dashboard and resource access.
+                </p>
               </div>
-            ) : pendingStudents.length === 0 ? (
-              <div className="p-8 text-center rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-xs">
-                No pending student registrations.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {pendingStudents.map((student) => (
-                  <div
-                    key={student.id}
-                    className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-white">{student.name}</span>
-                        <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-amber-400 border border-slate-700">
-                          Roll: {student.rollNumber}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400">{student.email}</p>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleApprove(student.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold"
-                      >
-                        <UserCheck className="w-3.5 h-3.5" />
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleReject(student.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold"
-                      >
-                        <UserX className="w-3.5 h-3.5" />
-                        Reject
-                      </button>
+              {pendingStudents.length === 0 ? (
+                <div className="p-6 text-center rounded-xl bg-slate-950 border border-slate-800 text-slate-400 text-xs">
+                  No pending student registrations.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pendingStudents.map((student) => (
+                    <div
+                      key={student.id}
+                      className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm text-white">{student.name}</span>
+                          <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-amber-400 border border-slate-700">
+                            Roll: {student.rollNumber}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400">{student.email}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleApproveStudent(student.id)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleRejectStudent(student.id)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold"
+                        >
+                          <UserX className="w-3.5 h-3.5" />
+                          Reject
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
