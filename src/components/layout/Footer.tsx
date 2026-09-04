@@ -5,8 +5,6 @@ import {
   Building2, 
   MapPin, 
   Mail, 
-  Phone, 
-  GraduationCap, 
   Calendar, 
   ArrowUpRight,
   HeartHandshake,
@@ -20,9 +18,11 @@ export default function Footer() {
     { label: "Home", href: "/" },
     { label: "About Department", href: "/about" },
     { label: "Faculty Directory", href: "/staff" },
+    { label: "Organizations Directory", href: "/organizations" },
     { label: "Notice Board", href: "/notices" },
     { label: "Events & Schedules", href: "/events" },
     { label: "Fieldwork Gallery", href: "/gallery" },
+    { label: "Alumni Network", href: "/alumni" },
     { label: "Student Dashboard", href: "/dashboard" },
   ];
 
@@ -36,11 +36,10 @@ export default function Footer() {
 
   return (
     <footer className="border-t border-slate-800 bg-slate-950 text-slate-400 text-xs">
-      {/* Top Footer Banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-12">
           
-          {/* Col 1: Brand & College Info */}
+          {/* Brand Info */}
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white border border-amber-500/40 p-1 flex items-center justify-center shrink-0 shadow-sm">
@@ -74,7 +73,7 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Col 2: Academic Shortcuts */}
+          {/* Quick Links */}
           <div className="lg:col-span-2 space-y-3">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">
               Quick Links
@@ -93,7 +92,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 3: Practicum & Downloads */}
+          {/* Practicum Desk */}
           <div className="lg:col-span-3 space-y-3">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">
               Field Practicum Desk
@@ -113,7 +112,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 4: Contact & Office */}
+          {/* Contact */}
           <div className="lg:col-span-3 space-y-3">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">
               Department Office
@@ -151,7 +150,6 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Bottom Legal / Copyright Bar */}
       <div className="border-t border-slate-900 bg-slate-950 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
           <p>

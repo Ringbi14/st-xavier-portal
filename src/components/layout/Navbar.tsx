@@ -41,7 +41,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           
-          {/* Brand Logo & Department Name */}
+          {/* Brand Logo & Department Title */}
           <Link href="/" className="flex items-center gap-3.5 group shrink-0">
             <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-white border border-amber-500/40 p-1 flex items-center justify-center shadow-sm group-hover:border-amber-400 transition">
               <Image
@@ -83,7 +83,7 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Right Action Buttons */}
+          {/* Right Action Profile & Admin Entry */}
           <div className="hidden xl:flex items-center gap-3">
             {user ? (
               <div className="flex items-center gap-2">
@@ -118,12 +118,12 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile Menu Toggle Button */}
+          {/* Mobile Drawer Trigger */}
           <div className="flex items-center xl:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition"
-              aria-label="Toggle Menu"
+              aria-label="Toggle Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -132,9 +132,9 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Drawer Menu */}
+      {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="xl:hidden border-b border-slate-800 bg-slate-950 px-4 pt-2 pb-6 space-y-2 animate-in slide-in-from-top-2">
+        <div className="xl:hidden border-b border-slate-800 bg-slate-950 px-4 pt-2 pb-6 space-y-2">
           {navLinks.map((link) => {
             const active = isActive(link.href);
             return (

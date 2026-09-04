@@ -17,13 +17,13 @@ import {
   Users, 
   PlusCircle, 
   Trash2, 
-  ArrowLeft,
-  Camera,
-  UploadCloud,
-  Bell,
-  Calendar as CalendarIcon,
-  Image as ImageIcon,
-  Briefcase
+  ArrowLeft, 
+  Camera, 
+  UploadCloud, 
+  Bell, 
+  Calendar as CalendarIcon, 
+  Image as ImageIcon, 
+  Briefcase 
 } from "lucide-react";
 
 interface FacultyItem {
@@ -83,16 +83,62 @@ export default function AdminPortalPage() {
   const staffFileInputRef = useRef<HTMLInputElement>(null);
   const galleryFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<"staff" | "notices" | "gallery" | "events" | "organizations">("staff");
+  const [activeTab, setActiveTab] = useState<"staff" | "organizations" | "notices" | "events" | "gallery">("staff");
 
-  // State
   const [facultyMembers, setFacultyMembers] = useState<FacultyItem[]>([]);
   const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [organizations, setOrganizations] = useState<OrgAdminItem[]>([]);
 
-  // Organization Form State (No year/date field)
+  // Faculty State
+  const [submittingStaff, setSubmittingStaff] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string>("");
+  const [facultyForm, setFacultyForm] = useState({
+    name: "",
+    designation: "",
+    qualification: "",
+    specialization: "",
+    email: "",
+    phone: "",
+    officeRoom: "",
+    photoUrl: "",
+  });
+
+  // Notice State
+  const [submittingNotice, setSubmittingNotice] = useState(false);
+  const [noticeForm, setNoticeForm] = useState({
+    title: "",
+    category: "Academic" as "Academic" | "Fieldwork" | "Examinations" | "Urgent",
+    description: "",
+    attachmentUrl: "",
+    isImportant: false,
+    date: new Date().toISOString().split("T")[0],
+  });
+
+  // Gallery State
+  const [submittingGallery, setSubmittingGallery] = useState(false);
+  const [galleryPhotoPreview, setGalleryPhotoPreview] = useState<string>("");
+  const [galleryForm, setGalleryForm] = useState({
+    title: "",
+    category: "Fieldwork" as "Rural Camp" | "Fieldwork" | "Workshops" | "Community",
+    caption: "",
+    imageUrl: "",
+    date: new Date().toISOString().split("T")[0],
+  });
+
+  // Event State
+  const [submittingEvent, setSubmittingEvent] = useState(false);
+  const [eventForm, setEventForm] = useState({
+    title: "",
+    date: new Date().toISOString().split("T")[0],
+    time: "10:00 AM",
+    venue: "",
+    category: "Academic" as "Fieldwork" | "Academic" | "Seminar" | "Camp",
+    description: "",
+  });
+
+  // Organization State
   const [submittingOrg, setSubmittingOrg] = useState(false);
   const [orgForm, setOrgForm] = useState({
     name: "",
@@ -104,7 +150,6 @@ export default function AdminPortalPage() {
     description: "",
   });
 
-  // Options
   const orgTypeOptions = [
     "NGO",
     "Government Organization",
@@ -150,7 +195,6 @@ export default function AdminPortalPage() {
     "Research"
   ];
 
-  // Firestore Subscriptions
   useEffect(() => {
     try {
       const u1 = onSnapshot(query(collection(db, "staff")), (snap) => {
@@ -177,7 +221,30 @@ export default function AdminPortalPage() {
     }
   }, []);
 
-  // Organization Activity Toggle
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) return alert("Image must be under 2MB");
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result as string);
+      setFacultyForm((prev) => ({ ...prev, photoUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGalleryPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2.5 * 1024 * 1024) return alert("Image must be under 2.5MB");
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setGalleryPhotoPreview(reader.result as string);
+      setGalleryForm((prev) => ({ ...prev, imageUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const toggleActivity = (act: string) => {
     setOrgForm((prev) => ({
       ...prev,
@@ -187,7 +254,6 @@ export default function AdminPortalPage() {
     }));
   };
 
-  // Organization Area Toggle
   const toggleArea = (area: string) => {
     setOrgForm((prev) => ({
       ...prev,
@@ -197,13 +263,57 @@ export default function AdminPortalPage() {
     }));
   };
 
-  // Submit Organization
+  const handleCreateStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!facultyForm.name || !facultyForm.designation || !facultyForm.email) return alert("Fill required fields.");
+    setSubmittingStaff(true);
+    try {
+      await addDoc(collection(db, "staff"), { ...facultyForm, authorEmail: user?.email || "admin", createdAt: new Date().toISOString() });
+      setFacultyForm({ name: "", designation: "", qualification: "", specialization: "", email: "", phone: "", officeRoom: "", photoUrl: "" });
+      setPhotoPreview("");
+      if (staffFileInputRef.current) staffFileInputRef.current.value = "";
+      alert("Faculty profile published!");
+    } finally { setSubmittingStaff(false); }
+  };
+
+  const handleCreateNotice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!noticeForm.title || !noticeForm.description) return alert("Fill required fields.");
+    setSubmittingNotice(true);
+    try {
+      await addDoc(collection(db, "notices"), { ...noticeForm, authorEmail: user?.email || "admin", createdAt: new Date().toISOString() });
+      setNoticeForm({ title: "", category: "Academic", description: "", attachmentUrl: "", isImportant: false, date: new Date().toISOString().split("T")[0] });
+      alert("Notice published!");
+    } finally { setSubmittingNotice(false); }
+  };
+
+  const handleCreateGallery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!galleryForm.title || !galleryForm.imageUrl) return alert("Select an image and enter a title.");
+    setSubmittingGallery(true);
+    try {
+      await addDoc(collection(db, "gallery"), { ...galleryForm, authorEmail: user?.email || "admin", createdAt: new Date().toISOString() });
+      setGalleryForm({ title: "", category: "Fieldwork", caption: "", imageUrl: "", date: new Date().toISOString().split("T")[0] });
+      setGalleryPhotoPreview("");
+      if (galleryFileInputRef.current) galleryFileInputRef.current.value = "";
+      alert("Photo published to gallery!");
+    } finally { setSubmittingGallery(false); }
+  };
+
+  const handleCreateEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eventForm.title || !eventForm.venue || !eventForm.description) return alert("Provide title, venue, and description.");
+    setSubmittingEvent(true);
+    try {
+      await addDoc(collection(db, "events"), { ...eventForm, authorEmail: user?.email || "admin", createdAt: new Date().toISOString() });
+      setEventForm({ title: "", date: new Date().toISOString().split("T")[0], time: "10:00 AM", venue: "", category: "Academic", description: "" });
+      alert("Event published to schedule!");
+    } finally { setSubmittingEvent(false); }
+  };
+
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orgForm.name || !orgForm.location || !orgForm.description) {
-      alert("Name, location, and description are required.");
-      return;
-    }
+    if (!orgForm.name || !orgForm.location || !orgForm.description) return alert("Name, location, and description are required.");
     setSubmittingOrg(true);
     try {
       await addDoc(collection(db, "organizations"), {
@@ -221,23 +331,11 @@ export default function AdminPortalPage() {
         description: "",
       });
       alert("Organization profile published to directory!");
-    } catch (err: any) {
-      alert("Error: " + err.message);
-    } finally {
-      setSubmittingOrg(false);
-    }
-  };
-
-  const handleDeleteOrg = async (id: string, name: string) => {
-    if (confirm(`Delete organization: "${name}"?`)) {
-      await deleteDoc(doc(db, "organizations", id));
-    }
+    } finally { setSubmittingOrg(false); }
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white selection:bg-amber-500 selection:text-slate-950 pb-20">
-      
-      {/* Header */}
       <div className="border-b border-slate-800 bg-slate-900/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -250,7 +348,7 @@ export default function AdminPortalPage() {
                 Department Administrative Center
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Manage live faculty directories, circulars, events, and organizations.
+                Manage live faculty directories, organizations, notices, events, and gallery records.
               </p>
             </div>
 
@@ -265,12 +363,11 @@ export default function AdminPortalPage() {
             </div>
           </div>
 
-          {/* Navigation Tabs */}
           <div className="flex items-center gap-2 mt-8 overflow-x-auto pb-2">
             <button
               onClick={() => setActiveTab("staff")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                activeTab === "staff" ? "bg-amber-500 text-slate-950 font-bold" : "bg-slate-900 text-slate-400 border border-slate-800"
+                activeTab === "staff" ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400 border border-slate-800"
               }`}
             >
               <Users className="w-4 h-4" />
@@ -280,7 +377,7 @@ export default function AdminPortalPage() {
             <button
               onClick={() => setActiveTab("organizations")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                activeTab === "organizations" ? "bg-amber-500 text-slate-950 font-bold" : "bg-slate-900 text-slate-400 border border-slate-800"
+                activeTab === "organizations" ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400 border border-slate-800"
               }`}
             >
               <Briefcase className="w-4 h-4" />
@@ -290,7 +387,7 @@ export default function AdminPortalPage() {
             <button
               onClick={() => setActiveTab("notices")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                activeTab === "notices" ? "bg-amber-500 text-slate-950 font-bold" : "bg-slate-900 text-slate-400 border border-slate-800"
+                activeTab === "notices" ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400 border border-slate-800"
               }`}
             >
               <Bell className="w-4 h-4" />
@@ -300,7 +397,7 @@ export default function AdminPortalPage() {
             <button
               onClick={() => setActiveTab("events")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                activeTab === "events" ? "bg-amber-500 text-slate-950 font-bold" : "bg-slate-900 text-slate-400 border border-slate-800"
+                activeTab === "events" ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400 border border-slate-800"
               }`}
             >
               <CalendarIcon className="w-4 h-4" />
@@ -310,7 +407,7 @@ export default function AdminPortalPage() {
             <button
               onClick={() => setActiveTab("gallery")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                activeTab === "gallery" ? "bg-amber-500 text-slate-950 font-bold" : "bg-slate-900 text-slate-400 border border-slate-800"
+                activeTab === "gallery" ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400 border border-slate-800"
               }`}
             >
               <ImageIcon className="w-4 h-4" />
@@ -321,12 +418,63 @@ export default function AdminPortalPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        
-        {/* TAB: ORGANIZATIONS DIRECTORY MANAGEMENT */}
+        {/* TAB 1: FACULTY */}
+        {activeTab === "staff" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-6 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+                <PlusCircle className="w-5 h-5 text-amber-400" />
+                <span>Create Faculty Profile</span>
+              </h2>
+              <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-2">Faculty Photo</label>
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-16 h-16 rounded-2xl bg-slate-950 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                      {photoPreview ? <img src={photoPreview} alt="" className="w-full h-full object-cover" /> : <Camera className="w-5 h-5 text-slate-500" />}
+                    </div>
+                    <input type="file" ref={staffFileInputRef} accept="image/*" onChange={handlePhotoUpload} className="hidden" id="staff-pic" />
+                    <label htmlFor="staff-pic" className="px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 cursor-pointer font-semibold border border-slate-700">
+                      Upload Picture
+                    </label>
+                  </div>
+                </div>
+                <input type="text" required placeholder="Full Name & Title *" value={facultyForm.name} onChange={(e) => setFacultyForm({ ...facultyForm, name: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                <input type="text" required placeholder="Designation / Role *" value={facultyForm.designation} onChange={(e) => setFacultyForm({ ...facultyForm, designation: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="text" placeholder="Degrees" value={facultyForm.qualification} onChange={(e) => setFacultyForm({ ...facultyForm, qualification: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                  <input type="email" required placeholder="Official Email *" value={facultyForm.email} onChange={(e) => setFacultyForm({ ...facultyForm, email: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                </div>
+                <input type="text" placeholder="Specialization" value={facultyForm.specialization} onChange={(e) => setFacultyForm({ ...facultyForm, specialization: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="text" placeholder="Office Room" value={facultyForm.officeRoom} onChange={(e) => setFacultyForm({ ...facultyForm, officeRoom: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                  <input type="text" placeholder="Phone" value={facultyForm.phone} onChange={(e) => setFacultyForm({ ...facultyForm, phone: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                </div>
+                <button type="submit" disabled={submittingStaff} className="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
+                  {submittingStaff ? "Publishing..." : "Publish Profile"}
+                </button>
+              </form>
+            </div>
+            <div className="lg:col-span-6 space-y-3">
+              <h2 className="text-lg font-bold text-white">Active Faculty ({facultyMembers.length})</h2>
+              {facultyMembers.map((m) => (
+                <div key={m.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+                  <div>
+                    <span className="text-sm font-bold text-white block">{m.name}</span>
+                    <p className="text-xs text-amber-400">{m.designation}</p>
+                  </div>
+                  <button onClick={() => deleteDoc(doc(db, "staff", m.id))} className="p-2 rounded bg-rose-500/10 text-rose-400">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: ORGANIZATIONS */}
         {activeTab === "organizations" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            
-            {/* Form without year field */}
             <div className="lg:col-span-6 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
               <div className="mb-6">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -389,7 +537,6 @@ export default function AdminPortalPage() {
                   </div>
                 </div>
 
-                {/* Activity Checkboxes */}
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1.5">Department Activities Conducted</label>
                   <div className="flex flex-wrap gap-2">
@@ -410,7 +557,6 @@ export default function AdminPortalPage() {
                   </div>
                 </div>
 
-                {/* Areas of Work Checkboxes */}
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1.5">Main Areas of Work</label>
                   <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-slate-950 rounded-xl border border-slate-800">
@@ -453,39 +599,171 @@ export default function AdminPortalPage() {
               </form>
             </div>
 
-            {/* List */}
             <div className="lg:col-span-6 space-y-3">
               <h2 className="text-lg font-bold text-white">Active Organizations ({organizations.length})</h2>
-              {organizations.length === 0 ? (
-                <div className="p-8 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-center text-xs text-slate-400">
-                  No organizations published in database yet.
-                </div>
-              ) : (
-                organizations.map((org) => (
-                  <div key={org.id} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase">
-                          {org.orgType}
-                        </span>
-                        <h4 className="text-sm font-bold text-white mt-1">{org.name}</h4>
-                        <p className="text-xs text-slate-400">{org.location}</p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteOrg(org.id, org.name)}
-                        className="p-2 rounded bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+              {organizations.map((org) => (
+                <div key={org.id} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase">
+                        {org.orgType}
+                      </span>
+                      <h4 className="text-sm font-bold text-white mt-1">{org.name}</h4>
+                      <p className="text-xs text-slate-400">{org.location}</p>
                     </div>
+                    <button
+                      onClick={() => deleteDoc(doc(db, "organizations", org.id))}
+                      className="p-2 rounded bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
-
           </div>
         )}
 
+        {/* TAB 3: NOTICES */}
+        {activeTab === "notices" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-5 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+                <PlusCircle className="w-5 h-5 text-amber-400" />
+                <span>Publish Notice</span>
+              </h2>
+              <form onSubmit={handleCreateNotice} className="space-y-4 text-xs">
+                <input type="text" required placeholder="Notice Title *" value={noticeForm.title} onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                <div className="grid grid-cols-2 gap-4">
+                  <select value={noticeForm.category} onChange={(e) => setNoticeForm({ ...noticeForm, category: e.target.value as any })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500">
+                    <option value="Academic">Academic</option>
+                    <option value="Fieldwork">Fieldwork</option>
+                    <option value="Examinations">Examinations</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                  <input type="date" value={noticeForm.date} onChange={(e) => setNoticeForm({ ...noticeForm, date: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                </div>
+                <textarea required rows={4} placeholder="Description..." value={noticeForm.description} onChange={(e) => setNoticeForm({ ...noticeForm, description: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                <input type="url" placeholder="Attachment Link (Optional)" value={noticeForm.attachmentUrl} onChange={(e) => setNoticeForm({ ...noticeForm, attachmentUrl: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                <button type="submit" disabled={submittingNotice} className="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
+                  {submittingNotice ? "Publishing..." : "Post Notice"}
+                </button>
+              </form>
+            </div>
+            <div className="lg:col-span-7 space-y-3">
+              <h2 className="text-lg font-bold text-white">Live Notices ({notices.length})</h2>
+              {notices.map((n) => (
+                <div key={n.id} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-white">{n.title}</h4>
+                    <p className="text-xs text-slate-400">{n.category} • {n.date}</p>
+                  </div>
+                  <button onClick={() => deleteDoc(doc(db, "notices", n.id))} className="p-2 rounded bg-rose-500/10 text-rose-400">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: EVENTS */}
+        {activeTab === "events" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-5 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+                <PlusCircle className="w-5 h-5 text-amber-400" />
+                <span>Schedule Event</span>
+              </h2>
+              <form onSubmit={handleCreateEvent} className="space-y-4 text-xs">
+                <input type="text" required placeholder="Event Title *" value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="date" required value={eventForm.date} onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                  <input type="text" required placeholder="Time *" value={eventForm.time} onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <select value={eventForm.category} onChange={(e) => setEventForm({ ...eventForm, category: e.target.value as any })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500">
+                    <option value="Academic">Academic</option>
+                    <option value="Fieldwork">Fieldwork</option>
+                    <option value="Camp">Rural Camp</option>
+                    <option value="Seminar">Seminar</option>
+                  </select>
+                  <input type="text" required placeholder="Venue *" value={eventForm.venue} onChange={(e) => setEventForm({ ...eventForm, venue: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                </div>
+                <textarea required rows={4} placeholder="Description & Agenda *" value={eventForm.description} onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                <button type="submit" disabled={submittingEvent} className="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
+                  {submittingEvent ? "Publishing..." : "Schedule Event"}
+                </button>
+              </form>
+            </div>
+            <div className="lg:col-span-7 space-y-3">
+              <h2 className="text-lg font-bold text-white">Scheduled Events ({events.length})</h2>
+              {events.map((ev) => (
+                <div key={ev.id} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-bold">{ev.category}</span>
+                    <button onClick={() => deleteDoc(doc(db, "events", ev.id))} className="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <h4 className="text-sm font-bold text-white">{ev.title}</h4>
+                  <p className="text-xs text-slate-400">{ev.date} • {ev.time} • {ev.venue}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: GALLERY */}
+        {activeTab === "gallery" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-5 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
+                <PlusCircle className="w-5 h-5 text-amber-400" />
+                <span>Upload Fieldwork Photo</span>
+              </h2>
+              <form onSubmit={handleCreateGallery} className="space-y-4 text-xs">
+                <div className="relative aspect-video rounded-2xl bg-slate-950 border border-slate-700 flex items-center justify-center overflow-hidden">
+                  {galleryPhotoPreview ? <img src={galleryPhotoPreview} alt="" className="w-full h-full object-cover" /> : <ImageIcon className="w-8 h-8 text-slate-600" />}
+                </div>
+                <input type="file" ref={galleryFileInputRef} accept="image/*" onChange={handleGalleryPhotoUpload} className="hidden" id="gal-file" />
+                <label htmlFor="gal-file" className="block text-center py-2 rounded-xl bg-slate-800 text-slate-200 cursor-pointer font-semibold border border-slate-700">
+                  Select Picture
+                </label>
+                <input type="text" required placeholder="Activity Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({ ...galleryForm, title: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                <div className="grid grid-cols-2 gap-4">
+                  <select value={galleryForm.category} onChange={(e) => setGalleryForm({ ...galleryForm, category: e.target.value as any })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500">
+                    <option value="Fieldwork">Fieldwork</option>
+                    <option value="Rural Camp">Rural Camp</option>
+                    <option value="Workshops">Workshops</option>
+                    <option value="Community">Community Action</option>
+                  </select>
+                  <input type="date" value={galleryForm.date} onChange={(e) => setGalleryForm({ ...galleryForm, date: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                </div>
+                <textarea rows={3} placeholder="Caption..." value={galleryForm.caption} onChange={(e) => setGalleryForm({ ...galleryForm, caption: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
+                <button type="submit" disabled={submittingGallery} className="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
+                  {submittingGallery ? "Uploading..." : "Publish Photo"}
+                </button>
+              </form>
+            </div>
+            <div className="lg:col-span-7 space-y-3">
+              <h2 className="text-lg font-bold text-white">Live Gallery Photos ({galleryItems.length})</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {galleryItems.map((g) => (
+                  <div key={g.id} className="p-2 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1">
+                    <img src={g.imageUrl} alt="" className="aspect-video w-full object-cover rounded-xl" />
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs font-bold text-white truncate">{g.title}</span>
+                      <button onClick={() => deleteDoc(doc(db, "gallery", g.id))} className="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

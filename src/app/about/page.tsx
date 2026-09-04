@@ -7,15 +7,9 @@ import {
   Target, 
   Compass, 
   BookOpen, 
-  Users, 
-  GraduationCap, 
-  HeartHandshake, 
   History, 
-  MapPin, 
   CheckCircle2, 
-  ArrowRight,
-  ShieldAlert,
-  Sparkles
+  ArrowRight
 } from "lucide-react";
 
 export default function AboutPage() {
@@ -30,7 +24,7 @@ export default function AboutPage() {
       period: "[Academic Milestone]",
       phase: "[Phase II: Field Practicum & Agency Linkages]",
       description:
-        "[Detailed milestone will be documented here: introduction of concurrent fieldwork placements, agency MOU partnerships across Manipur, and curriculum structuring.]",
+        "[Detailed milestone will be documented here: introduction of concurrent fieldwork placements, agency partnerships across Manipur, and curriculum structuring.]",
     },
     {
       period: "[Practicum Milestone]",
@@ -68,7 +62,7 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white selection:bg-amber-500 selection:text-slate-950 pb-20">
       
-      {/* 1. Header Banner */}
+      {/* Header Banner */}
       <section className="border-b border-slate-800 bg-slate-900/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           <div className="max-w-3xl">
@@ -91,7 +85,7 @@ export default function AboutPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 space-y-16">
         
-        {/* 2. Department Overview */}
+        {/* Overview */}
         <section className="p-8 sm:p-10 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
           <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
             <BookOpen className="w-4 h-4" />
@@ -101,15 +95,11 @@ export default function AboutPage() {
             Professional Social Work Education in Manipur
           </h2>
           <p className="text-sm text-slate-300 leading-relaxed">
-            The Department of Social Work at St. Xavier College, Maram Khunou, provides a rigorous 
-            undergraduate programme designed to cultivate visionary social changemakers. Blending 
-            intensive theoretical modules in sociology, developmental psychology, social legislation, 
-            and casework with continuous field agency immersion, our students are groomed to address 
-            systemic challenges across tribal, rural, and urban landscapes.
+            The Department of Social Work at St. Xavier College, Maram Khunou, provides a rigorous undergraduate programme designed to cultivate visionary social changemakers. Blending intensive theoretical modules in sociology, developmental psychology, social legislation, and casework with continuous field agency immersion, our students are groomed to address systemic challenges across tribal, rural, and urban landscapes.
           </p>
         </section>
 
-        {/* 3. History Timeline (Structured Placeholders — No Hallucinated Facts) */}
+        {/* History Timeline */}
         <section className="space-y-6">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
@@ -124,7 +114,6 @@ export default function AboutPage() {
           <div className="relative border-l-2 border-slate-800 ml-4 pl-6 sm:pl-8 space-y-8">
             {historyMilestones.map((m, idx) => (
               <div key={idx} className="relative group">
-                {/* Dot */}
                 <div className="absolute -left-[31px] sm:-left-[39px] top-1 w-4 h-4 rounded-full bg-slate-950 border-2 border-amber-400 group-hover:bg-amber-400 transition" />
                 
                 <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/50 border border-slate-800/80 hover:border-amber-500/30 transition space-y-2">
@@ -145,7 +134,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* 4. Vision & Mission */}
+        {/* Vision & Mission */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="p-8 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
@@ -168,7 +157,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* 5. Core Objectives */}
+        {/* Educational Pillars */}
         <section className="space-y-6">
           <div>
             <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
@@ -197,7 +186,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* 6. Social Work Education & Community Engagement Callout */}
+        {/* Explore Directory Banner */}
         <section className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-amber-500/15 via-slate-900 to-slate-900 border border-amber-500/30 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2 max-w-xl">
             <h3 className="text-xl sm:text-2xl font-black text-white">

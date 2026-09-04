@@ -5,7 +5,6 @@ import Link from "next/link";
 import { 
   GraduationCap, 
   Users, 
-  Building2, 
   Briefcase, 
   HeartHandshake, 
   ArrowRight,
@@ -16,7 +15,6 @@ export default function AlumniComingSoonPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white selection:bg-amber-500 selection:text-slate-950 pb-20">
       
-      {/* Header Banner */}
       <section className="border-b border-slate-800 bg-slate-900/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 text-center flex flex-col items-center">
           
@@ -40,7 +38,6 @@ export default function AlumniComingSoonPage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 space-y-10">
         
-        {/* Coming Soon Notice Card */}
         <div className="p-8 sm:p-12 rounded-3xl bg-slate-900/60 border border-slate-800 text-center space-y-6">
           <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
             <Sparkles className="w-8 h-8" />
@@ -55,7 +52,6 @@ export default function AlumniComingSoonPage() {
             </p>
           </div>
 
-          {/* Planned Features Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left pt-4">
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5">
               <Users className="w-5 h-5 text-amber-400" />

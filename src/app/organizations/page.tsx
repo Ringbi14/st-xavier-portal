@@ -4,13 +4,12 @@ import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { 
-  Building2, 
+  Briefcase, 
   MapPin, 
   Search, 
   ExternalLink, 
-  Briefcase, 
   Info, 
-  X
+  X 
 } from "lucide-react";
 
 export interface OrganizationItem {
@@ -27,7 +26,6 @@ export interface OrganizationItem {
   logoUrl?: string;
 }
 
-// Sample records without visit year/date
 const SAMPLE_ORGANIZATIONS: OrganizationItem[] = [
   {
     id: "sample-1",
@@ -120,7 +118,6 @@ export default function OrganizationsDirectoryPage() {
     "Research"
   ];
 
-  // Firestore Sync
   useEffect(() => {
     try {
       const q = query(collection(db, "organizations"));
@@ -142,7 +139,6 @@ export default function OrganizationsDirectoryPage() {
     }
   }, []);
 
-  // Filtering Logic
   const filteredOrganizations = organizations.filter((org) => {
     const matchesSearch =
       org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -187,7 +183,7 @@ export default function OrganizationsDirectoryPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
         
-        {/* Search & Multi-Filter Controls */}
+        {/* Search & Filter */}
         <div className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-5">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="relative w-full md:w-96">
@@ -206,7 +202,6 @@ export default function OrganizationsDirectoryPage() {
             </div>
           </div>
 
-          {/* Filter Dropdowns Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
             <div>
               <label className="block text-slate-400 mb-1.5 font-medium">Organization Type</label>
@@ -263,7 +258,7 @@ export default function OrganizationsDirectoryPage() {
           )}
         </div>
 
-        {/* Organizations Cards Grid */}
+        {/* Directory Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredOrganizations.map((org) => (
             <div
@@ -293,7 +288,6 @@ export default function OrganizationsDirectoryPage() {
               </div>
 
               <div className="space-y-3 pt-2 border-t border-slate-800/80">
-                {/* Activities Badges */}
                 <div className="flex flex-wrap gap-1.5">
                   {org.activities?.map((act) => (
                     <span
@@ -305,7 +299,6 @@ export default function OrganizationsDirectoryPage() {
                   ))}
                 </div>
 
-                {/* Areas of Work Badges */}
                 <div className="flex flex-wrap gap-1">
                   {org.areasOfWork?.slice(0, 3).map((area) => (
                     <span
@@ -341,7 +334,7 @@ export default function OrganizationsDirectoryPage() {
 
       </div>
 
-      {/* Details Modal */}
+      {/* Modal View */}
       {activeModalOrg && (
         <div
           onClick={() => setActiveModalOrg(null)}
