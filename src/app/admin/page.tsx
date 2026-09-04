@@ -23,9 +23,7 @@ import {
   Bell,
   Calendar as CalendarIcon,
   Image as ImageIcon,
-  Briefcase,
-  ExternalLink,
-  MapPin
+  Briefcase
 } from "lucide-react";
 
 interface FacultyItem {
@@ -78,7 +76,6 @@ interface OrgAdminItem {
   areasOfWork: string[];
   website?: string;
   description: string;
-  yearOrDate?: string;
 }
 
 export default function AdminPortalPage() {
@@ -95,7 +92,7 @@ export default function AdminPortalPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [organizations, setOrganizations] = useState<OrgAdminItem[]>([]);
 
-  // Organization Form State
+  // Organization Form State (No year/date field)
   const [submittingOrg, setSubmittingOrg] = useState(false);
   const [orgForm, setOrgForm] = useState({
     name: "",
@@ -105,7 +102,6 @@ export default function AdminPortalPage() {
     areasOfWork: ["Community Development"] as string[],
     website: "",
     description: "",
-    yearOrDate: new Date().getFullYear().toString(),
   });
 
   // Options
@@ -223,7 +219,6 @@ export default function AdminPortalPage() {
         areasOfWork: ["Community Development"],
         website: "",
         description: "",
-        yearOrDate: new Date().getFullYear().toString(),
       });
       alert("Organization profile published to directory!");
     } catch (err: any) {
@@ -331,7 +326,7 @@ export default function AdminPortalPage() {
         {activeTab === "organizations" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            {/* Form */}
+            {/* Form without year field */}
             <div className="lg:col-span-6 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
               <div className="mb-6">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -356,30 +351,17 @@ export default function AdminPortalPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Organization Type *</label>
-                    <select
-                      value={orgForm.orgType}
-                      onChange={(e) => setOrgForm({ ...orgForm, orgType: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500"
-                    >
-                      {orgTypeOptions.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Year / Period of Visit</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 2025–2026"
-                      value={orgForm.yearOrDate}
-                      onChange={(e) => setOrgForm({ ...orgForm, yearOrDate: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Organization Type *</label>
+                  <select
+                    value={orgForm.orgType}
+                    onChange={(e) => setOrgForm({ ...orgForm, orgType: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                  >
+                    {orgTypeOptions.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -501,13 +483,6 @@ export default function AdminPortalPage() {
               )}
             </div>
 
-          </div>
-        )}
-
-        {/* Other tabs remain fully intact (Faculty, Notices, Events, Gallery) */}
-        {activeTab === "staff" && (
-          <div className="p-6 text-center text-xs text-slate-400">
-            Faculty Directory Management Active. Use the navigation buttons above to switch to Notices, Events, or Organizations.
           </div>
         )}
 

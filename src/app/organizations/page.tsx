@@ -9,12 +9,8 @@ import {
   Search, 
   ExternalLink, 
   Briefcase, 
-  Filter, 
-  Layers, 
   Info, 
-  X, 
-  Calendar,
-  Sparkles
+  X
 } from "lucide-react";
 
 export interface OrganizationItem {
@@ -28,11 +24,10 @@ export interface OrganizationItem {
   website?: string;
   contact?: string;
   description: string;
-  yearOrDate?: string;
   logoUrl?: string;
 }
 
-// Transparent sample placeholders clearly labeled as sample records
+// Sample records without visit year/date
 const SAMPLE_ORGANIZATIONS: OrganizationItem[] = [
   {
     id: "sample-1",
@@ -44,7 +39,6 @@ const SAMPLE_ORGANIZATIONS: OrganizationItem[] = [
     areasOfWork: ["Rural Development", "Community Development", "Livelihood"],
     website: "https://www.stxaviercollegespt.ac.in/",
     description: "Sample demonstration record: An indigenous non-governmental organization working on rural women self-help groups, agro-forestry, and participatory watershed management.",
-    yearOrDate: "2025–2026",
   },
   {
     id: "sample-2",
@@ -56,7 +50,6 @@ const SAMPLE_ORGANIZATIONS: OrganizationItem[] = [
     areasOfWork: ["Child Welfare", "Education", "Human Rights"],
     website: "https://www.stxaviercollegespt.ac.in/",
     description: "Sample demonstration record: Grassroots organization focused on child rights monitoring, juvenile shelter care, and inclusive primary education.",
-    yearOrDate: "2025",
   },
   {
     id: "sample-3",
@@ -68,7 +61,6 @@ const SAMPLE_ORGANIZATIONS: OrganizationItem[] = [
     areasOfWork: ["Healthcare", "Mental Health", "Rehabilitation"],
     website: "https://www.stxaviercollegespt.ac.in/",
     description: "Sample demonstration record: Community health center providing outpatient counseling, substance rehabilitation, and community psychosocial support.",
-    yearOrDate: "2026",
   }
 ];
 
@@ -80,7 +72,6 @@ export default function OrganizationsDirectoryPage() {
   const [selectedArea, setSelectedArea] = useState("All");
   const [activeModalOrg, setActiveModalOrg] = useState<OrganizationItem | null>(null);
 
-  // Filter Categories
   const orgTypes = [
     "All",
     "NGO",
@@ -186,7 +177,6 @@ export default function OrganizationsDirectoryPage() {
               Fieldwork & Organizations
             </h1>
             
-            {/* Student Reference Purpose Note (Requirement 8) */}
             <div className="mt-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-xs sm:text-sm text-slate-300 leading-relaxed">
               <span className="font-bold text-amber-400">Notice for Students: </span>
               Explore organizations where students of the Department have participated in orientation visits, concurrent fieldwork, internships, projects, and other academic activities. This directory is designed to help students discover agencies relevant to their future academic and professional development.
@@ -286,11 +276,6 @@ export default function OrganizationsDirectoryPage() {
                   <span className="px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider">
                     {org.orgType}
                   </span>
-                  {org.yearOrDate && (
-                    <span className="text-[11px] text-slate-500 font-mono">
-                      {org.yearOrDate}
-                    </span>
-                  )}
                 </div>
 
                 <h3 className="text-base font-bold text-white group-hover:text-amber-400 transition-colors">
@@ -374,15 +359,10 @@ export default function OrganizationsDirectoryPage() {
             </button>
 
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
+              <div>
                 <span className="px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold uppercase">
                   {activeModalOrg.orgType}
                 </span>
-                {activeModalOrg.yearOrDate && (
-                  <span className="text-xs text-slate-400 font-mono">
-                    Year/Date: {activeModalOrg.yearOrDate}
-                  </span>
-                )}
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white">
                 {activeModalOrg.name}
@@ -434,7 +414,6 @@ export default function OrganizationsDirectoryPage() {
               </div>
             </div>
 
-            {/* Official Website Link (Safe target='_blank' + rel) */}
             {activeModalOrg.website && (
               <div className="pt-2 border-t border-slate-800">
                 <a
