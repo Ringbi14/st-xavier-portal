@@ -6,16 +6,12 @@ import Image from "next/image";
 import { 
   Building2, 
   ExternalLink, 
-  ArrowRight, 
   Users, 
   Bell, 
   Calendar, 
   Camera, 
   FileText, 
-  Sparkles,
-  BookOpen,
-  Compass,
-  HeartHandshake
+  Compass
 } from "lucide-react";
 
 export default function HomePage() {
@@ -28,16 +24,16 @@ export default function HomePage() {
           
           {/* Prominent Clickable College Link Pill */}
           <a
-            href="https://stxaviercollegemaram.org"
+            href="https://www.stxaviercollegespt.ac.in/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/60 transition-all duration-300 group cursor-pointer shadow-lg shadow-amber-500/5 mb-8"
+            className="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-amber-500/10 border-2 border-amber-500/40 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/70 transition-all duration-300 group cursor-pointer shadow-lg shadow-amber-500/10 mb-8"
           >
-            <Building2 className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-            <span className="text-xs sm:text-sm font-black tracking-wider uppercase">
+            <Building2 className="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" />
+            <span className="text-sm sm:text-base font-extrabold tracking-wider uppercase">
               St. Xavier College, Maram Khunou
             </span>
-            <ExternalLink className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition" />
+            <ExternalLink className="w-4 h-4 opacity-75 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition" />
           </a>
 
           {/* Department Logo Card */}
