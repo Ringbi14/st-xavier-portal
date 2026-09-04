@@ -43,7 +43,7 @@ export default function Footer() {
           {/* Col 1: Brand & College Info */}
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 p-1 flex items-center justify-center shrink-0">
+              <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-white border border-amber-500/40 p-1 flex items-center justify-center shrink-0 shadow-sm">
                 <Image
                   src="/dept-logo.png"
                   alt="Department Emblem"

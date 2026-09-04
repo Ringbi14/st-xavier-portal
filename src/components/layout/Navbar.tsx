@@ -9,16 +9,14 @@ import {
   Menu, 
   X, 
   ShieldCheck, 
-  GraduationCap, 
   LogOut, 
   LogIn, 
-  ChevronRight,
-  User
+  ChevronRight
 } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, profile, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
@@ -43,7 +41,7 @@ export default function Navbar() {
           
           {/* Brand Logo & Department Name */}
           <Link href="/" className="flex items-center gap-3.5 group shrink-0">
-            <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-slate-900 border border-slate-800 p-1 flex items-center justify-center group-hover:border-amber-500/50 transition">
+            <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-white border border-amber-500/40 p-1 flex items-center justify-center shadow-sm group-hover:border-amber-400 transition">
               <Image
                 src="/dept-logo.png"
                 alt="Department Logo"
@@ -87,7 +85,6 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-3">
             {user ? (
               <div className="flex items-center gap-2">
-                {/* Admin Access Link */}
                 <Link
                   href="/admin"
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition ${
@@ -100,7 +97,6 @@ export default function Navbar() {
                   <span>Admin Panel</span>
                 </Link>
 
-                {/* Logout Button */}
                 <button
                   onClick={() => logout()}
                   className="p-2 rounded-xl bg-slate-900 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 border border-slate-800 transition"
