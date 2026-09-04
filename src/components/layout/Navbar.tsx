@@ -23,10 +23,12 @@ export default function Navbar() {
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
     { name: "Faculty", href: "/staff" },
+    { name: "Organizations", href: "/organizations" },
     { name: "Notices", href: "/notices" },
     { name: "Events", href: "/events" },
     { name: "Gallery", href: "/gallery" },
-    { name: "Student Portal", href: "/dashboard" },
+    { name: "Alumni", href: "/alumni" },
+    { name: "Portal", href: "/dashboard" },
   ];
 
   const isActive = (path: string) => {
@@ -62,14 +64,14 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav className="hidden xl:flex items-center gap-1">
             {navLinks.map((link) => {
               const active = isActive(link.href);
               return (
                 <Link
                   key={link.name}
                   href={link.href}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
                     active
                       ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold"
                       : "text-slate-300 hover:text-white hover:bg-slate-900"
@@ -82,7 +84,7 @@ export default function Navbar() {
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden xl:flex items-center gap-3">
             {user ? (
               <div className="flex items-center gap-2">
                 <Link
@@ -117,7 +119,7 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Menu Toggle Button */}
-          <div className="flex items-center lg:hidden">
+          <div className="flex items-center xl:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition"
@@ -132,7 +134,7 @@ export default function Navbar() {
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-b border-slate-800 bg-slate-950 px-4 pt-2 pb-6 space-y-2 animate-in slide-in-from-top-2">
+        <div className="xl:hidden border-b border-slate-800 bg-slate-950 px-4 pt-2 pb-6 space-y-2 animate-in slide-in-from-top-2">
           {navLinks.map((link) => {
             const active = isActive(link.href);
             return (
