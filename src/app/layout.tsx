@@ -30,6 +30,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  verification: {
+    google: "6zrBnls67bnW7xdG7HckM9aiYf93dj6SmFVhWoPgjtk",
+  },
   openGraph: {
     title: "Department of Social Work | St. Xavier College, Maram Khunou",
     description:
