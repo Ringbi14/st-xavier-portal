@@ -1,761 +1,893 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { db } from "@/lib/firebase";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { auth, db } from "@/lib/firebase";
 import { 
-  collection, 
-  onSnapshot, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  query 
+  onAuthStateChanged, 
+  signOut, 
+  updateProfile,
+  User 
+} from "firebase/auth";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+  addDoc,
+  serverTimestamp,
+  orderBy,
+  onSnapshot
 } from "firebase/firestore";
-import { useAuth } from "@/context/AuthContext";
-import { 
-  ShieldCheck, 
-  Users, 
-  PlusCircle, 
-  Trash2, 
-  ArrowLeft, 
-  Camera, 
-  UploadCloud, 
-  Bell, 
-  Calendar as CalendarIcon, 
-  Image as ImageIcon, 
-  Briefcase 
+import {
+  ShieldCheck,
+  UserCheck,
+  Users,
+  UserCog,
+  Bell,
+  Calendar,
+  Building2,
+  FileDown,
+  LogOut,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Search,
+  Save,
+  AlertCircle,
+  Plus,
+  Trash2,
+  ExternalLink,
+  ShieldAlert,
+  Loader2
 } from "lucide-react";
 
-interface FacultyItem {
+interface UserProfile {
   id: string;
+  uid: string;
   name: string;
-  designation: string;
-  qualification: string;
-  specialization: string;
   email: string;
+  role: "student" | "admin";
+  status: "pending" | "approved" | "rejected";
+  regNumber?: string;
+  batch?: string;
   phone?: string;
-  officeRoom?: string;
-  photoUrl?: string;
+  designation?: string;
+  createdAt?: any;
 }
 
-interface NoticeItem {
-  id: string;
-  title: string;
-  category: "Academic" | "Fieldwork" | "Examinations" | "Urgent";
-  description: string;
-  attachmentUrl?: string;
-  isImportant: boolean;
-  date: string;
-}
+export default function AdminDashboardPage() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<
+    "approvals" | "roster" | "profile" | "notices" | "events" | "organizations" | "downloads"
+  >("approvals");
 
-interface GalleryItem {
-  id: string;
-  title: string;
-  category: "Rural Camp" | "Fieldwork" | "Workshops" | "Community";
-  caption?: string;
-  imageUrl: string;
-  date?: string;
-}
+  // State: User Data
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [rosterSearch, setRosterSearch] = useState("");
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-interface EventItem {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  venue: string;
-  category: "Fieldwork" | "Academic" | "Seminar" | "Camp";
-  description: string;
-}
+  // State: Admin Profile Form
+  const [profileName, setProfileName] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [profileDesignation, setProfileDesignation] = useState("Faculty Coordinator");
+  const [profileSaving, setProfileSaving] = useState(false);
 
-interface OrgAdminItem {
-  id: string;
-  name: string;
-  location: string;
-  orgType: string;
-  activities: string[];
-  areasOfWork: string[];
-  website?: string;
-  description: string;
-}
+  // State: Portal Content
+  const [notices, setNotices] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [downloads, setDownloads] = useState<any[]>([]);
 
-export default function AdminPortalPage() {
-  const { user } = useAuth();
-  const staffFileInputRef = useRef<HTMLInputElement>(null);
-  const galleryFileInputRef = useRef<HTMLInputElement>(null);
+  // Form states for content management
+  const [newNotice, setNewNotice] = useState({ title: "", category: "General", content: "", isUrgent: false });
+  const [newEvent, setNewEvent] = useState({ title: "", date: "", venue: "", description: "" });
+  const [newOrg, setNewOrg] = useState({ name: "", sector: "", location: "", contactPerson: "", contactPhone: "" });
+  const [newDownload, setNewDownload] = useState({ title: "", category: "Fieldwork", fileUrl: "" });
 
-  const [activeTab, setActiveTab] = useState<"staff" | "organizations" | "notices" | "events" | "gallery">("staff");
+  // 1. Check Authentication
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push("/login");
+      } else {
+        setCurrentUser(user);
+        setProfileName(user.displayName || "");
+      }
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
 
-  const [facultyMembers, setFacultyMembers] = useState<FacultyItem[]>([]);
-  const [notices, setNotices] = useState<NoticeItem[]>([]);
-  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [organizations, setOrganizations] = useState<OrgAdminItem[]>([]);
-
-  // Faculty State
-  const [submittingStaff, setSubmittingStaff] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState<string>("");
-  const [facultyForm, setFacultyForm] = useState({
-    name: "",
-    designation: "",
-    qualification: "",
-    specialization: "",
-    email: "",
-    phone: "",
-    officeRoom: "",
-    photoUrl: "",
-  });
-
-  // Notice State
-  const [submittingNotice, setSubmittingNotice] = useState(false);
-  const [noticeForm, setNoticeForm] = useState({
-    title: "",
-    category: "Academic" as "Academic" | "Fieldwork" | "Examinations" | "Urgent",
-    description: "",
-    attachmentUrl: "",
-    isImportant: false,
-    date: new Date().toISOString().split("T")[0],
-  });
-
-  // Gallery State
-  const [submittingGallery, setSubmittingGallery] = useState(false);
-  const [galleryPhotoPreview, setGalleryPhotoPreview] = useState<string>("");
-  const [galleryForm, setGalleryForm] = useState({
-    title: "",
-    category: "Fieldwork" as "Rural Camp" | "Fieldwork" | "Workshops" | "Community",
-    caption: "",
-    imageUrl: "",
-    date: new Date().toISOString().split("T")[0],
-  });
-
-  // Event State
-  const [submittingEvent, setSubmittingEvent] = useState(false);
-  const [eventForm, setEventForm] = useState({
-    title: "",
-    date: new Date().toISOString().split("T")[0],
-    time: "10:00 AM",
-    venue: "",
-    category: "Academic" as "Fieldwork" | "Academic" | "Seminar" | "Camp",
-    description: "",
-  });
-
-  // Organization State
-  const [submittingOrg, setSubmittingOrg] = useState(false);
-  const [orgForm, setOrgForm] = useState({
-    name: "",
-    location: "",
-    orgType: "NGO",
-    activities: ["Fieldwork"] as string[],
-    areasOfWork: ["Community Development"] as string[],
-    website: "",
-    description: "",
-  });
-
-  const orgTypeOptions = [
-    "NGO",
-    "Government Organization",
-    "Hospital / Healthcare",
-    "School / Educational Institution",
-    "Corporate / CSR",
-    "Community-Based Organization",
-    "Rehabilitation Organization",
-    "Child Welfare Organization",
-    "Women & Family Welfare Organization",
-    "Rural Development Organization",
-    "Livelihood Organization",
-    "Mental Health Organization",
-    "Disability Organization",
-    "Other"
-  ];
-
-  const activityOptions = [
-    "Orientation Visit",
-    "Fieldwork",
-    "Internship",
-    "Study Visit",
-    "Community Programme",
-    "Project",
-    "Other"
-  ];
-
-  const areaOptions = [
-    "Child Welfare",
-    "Women Empowerment",
-    "Community Development",
-    "Rural Development",
-    "Livelihood",
-    "Education",
-    "Healthcare",
-    "Disability",
-    "Rehabilitation",
-    "Mental Health",
-    "Human Rights",
-    "Social Welfare",
-    "CSR",
-    "HR",
-    "Research"
-  ];
+  // 2. Fetch All Registered Users
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const q = query(collection(db, "users"));
+      const snapshot = await getDocs(q);
+      const userList: UserProfile[] = [];
+      snapshot.forEach((d) => {
+        userList.push({ id: d.id, ...d.data() } as UserProfile);
+      });
+      setAllUsers(userList);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   useEffect(() => {
-    try {
-      const u1 = onSnapshot(query(collection(db, "staff")), (snap) => {
-        setFacultyMembers(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-      });
-      const u2 = onSnapshot(query(collection(db, "notices")), (snap) => {
-        setNotices(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-      });
-      const u3 = onSnapshot(query(collection(db, "gallery")), (snap) => {
-        setGalleryItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-      });
-      const u4 = onSnapshot(query(collection(db, "events")), (snap) => {
-        setEvents(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-      });
-      const u5 = onSnapshot(query(collection(db, "organizations")), (snap) => {
-        setOrganizations(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-      });
-
-      return () => {
-        u1(); u2(); u3(); u4(); u5();
-      };
-    } catch (err) {
-      console.error(err);
+    if (currentUser) {
+      fetchUsers();
     }
-  }, []);
+  }, [currentUser]);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) return alert("Image must be under 2MB");
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoPreview(reader.result as string);
-      setFacultyForm((prev) => ({ ...prev, photoUrl: reader.result as string }));
+  // 3. Live Sync Content Lists
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubNotices = onSnapshot(collection(db, "notices"), (snap) => {
+      setNotices(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    const unsubEvents = onSnapshot(collection(db, "events"), (snap) => {
+      setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    const unsubOrgs = onSnapshot(collection(db, "organizations"), (snap) => {
+      setOrganizations(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    const unsubDownloads = onSnapshot(collection(db, "downloads"), (snap) => {
+      setDownloads(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => {
+      unsubNotices();
+      unsubEvents();
+      unsubOrgs();
+      unsubDownloads();
     };
-    reader.readAsDataURL(file);
-  };
+  }, [currentUser]);
 
-  const handleGalleryPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2.5 * 1024 * 1024) return alert("Image must be under 2.5MB");
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setGalleryPhotoPreview(reader.result as string);
-      setGalleryForm((prev) => ({ ...prev, imageUrl: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const toggleActivity = (act: string) => {
-    setOrgForm((prev) => ({
-      ...prev,
-      activities: prev.activities.includes(act)
-        ? prev.activities.filter((a) => a !== act)
-        : [...prev.activities, act],
-    }));
-  };
-
-  const toggleArea = (area: string) => {
-    setOrgForm((prev) => ({
-      ...prev,
-      areasOfWork: prev.areasOfWork.includes(area)
-        ? prev.areasOfWork.filter((a) => a !== area)
-        : [...prev.areasOfWork, area],
-    }));
-  };
-
-  const handleCreateStaff = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!facultyForm.name || !facultyForm.designation || !facultyForm.email) return alert("Fill required fields.");
-    setSubmittingStaff(true);
+  // Actions: User Management
+  const handleUpdateStatus = async (userId: string, newStatus: "approved" | "rejected") => {
     try {
-      await addDoc(collection(db, "staff"), { ...facultyForm, authorEmail: user?.email || "admin", createdAt: new Date().toISOString() });
-      setFacultyForm({ name: "", designation: "", qualification: "", specialization: "", email: "", phone: "", officeRoom: "", photoUrl: "" });
-      setPhotoPreview("");
-      if (staffFileInputRef.current) staffFileInputRef.current.value = "";
-      alert("Faculty profile published!");
-    } finally { setSubmittingStaff(false); }
+      await updateDoc(doc(db, "users", userId), { status: newStatus });
+      setActionMessage(`Student status successfully updated to ${newStatus}.`);
+      fetchUsers();
+      setTimeout(() => setActionMessage(null), 3500);
+    } catch (err) {
+      console.error("Error updating status:", err);
+    }
   };
 
+  const handleToggleRole = async (userId: string, currentRole: "student" | "admin") => {
+    const nextRole = currentRole === "admin" ? "student" : "admin";
+    try {
+      await updateDoc(doc(db, "users", userId), { role: nextRole });
+      setActionMessage(`User access privilege updated to ${nextRole.toUpperCase()}.`);
+      fetchUsers();
+      setTimeout(() => setActionMessage(null), 3500);
+    } catch (err) {
+      console.error("Error updating role:", err);
+    }
+  };
+
+  // Actions: Admin Profile
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    setProfileSaving(true);
+    try {
+      await updateProfile(currentUser, { displayName: profileName });
+      
+      // Update profile in Firestore users collection as well
+      const userRef = doc(db, "users", currentUser.uid);
+      await updateDoc(userRef, {
+        name: profileName,
+        phone: profilePhone,
+        designation: profileDesignation,
+      }).catch(async () => {
+        // Fallback if doc doesn't exist under UID
+        const q = query(collection(db, "users"), where("email", "==", currentUser.email));
+        const res = await getDocs(q);
+        if (!res.empty) {
+          await updateDoc(doc(db, "users", res.docs[0].id), {
+            name: profileName,
+            phone: profilePhone,
+            designation: profileDesignation,
+          });
+        }
+      });
+
+      setActionMessage("Administrative profile updated successfully.");
+      setTimeout(() => setActionMessage(null), 3500);
+    } catch (err) {
+      console.error("Error saving profile:", err);
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  // Actions: Content Creators & Removers
   const handleCreateNotice = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!noticeForm.title || !noticeForm.description) return alert("Fill required fields.");
-    setSubmittingNotice(true);
-    try {
-      await addDoc(collection(db, "notices"), { ...noticeForm, authorEmail: user?.email || "admin", createdAt: new Date().toISOString() });
-      setNoticeForm({ title: "", category: "Academic", description: "", attachmentUrl: "", isImportant: false, date: new Date().toISOString().split("T")[0] });
-      alert("Notice published!");
-    } finally { setSubmittingNotice(false); }
-  };
-
-  const handleCreateGallery = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!galleryForm.title || !galleryForm.imageUrl) return alert("Select an image and enter a title.");
-    setSubmittingGallery(true);
-    try {
-      await addDoc(collection(db, "gallery"), { ...galleryForm, authorEmail: user?.email || "admin", createdAt: new Date().toISOString() });
-      setGalleryForm({ title: "", category: "Fieldwork", caption: "", imageUrl: "", date: new Date().toISOString().split("T")[0] });
-      setGalleryPhotoPreview("");
-      if (galleryFileInputRef.current) galleryFileInputRef.current.value = "";
-      alert("Photo published to gallery!");
-    } finally { setSubmittingGallery(false); }
+    if (!newNotice.title) return;
+    await addDoc(collection(db, "notices"), {
+      ...newNotice,
+      createdAt: serverTimestamp(),
+    });
+    setNewNotice({ title: "", category: "General", content: "", isUrgent: false });
   };
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!eventForm.title || !eventForm.venue || !eventForm.description) return alert("Provide title, venue, and description.");
-    setSubmittingEvent(true);
-    try {
-      await addDoc(collection(db, "events"), { ...eventForm, authorEmail: user?.email || "admin", createdAt: new Date().toISOString() });
-      setEventForm({ title: "", date: new Date().toISOString().split("T")[0], time: "10:00 AM", venue: "", category: "Academic", description: "" });
-      alert("Event published to schedule!");
-    } finally { setSubmittingEvent(false); }
+    if (!newEvent.title) return;
+    await addDoc(collection(db, "events"), {
+      ...newEvent,
+      createdAt: serverTimestamp(),
+    });
+    setNewEvent({ title: "", date: "", venue: "", description: "" });
   };
 
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orgForm.name || !orgForm.location || !orgForm.description) return alert("Name, location, and description are required.");
-    setSubmittingOrg(true);
-    try {
-      await addDoc(collection(db, "organizations"), {
-        ...orgForm,
-        authorEmail: user?.email || "admin",
-        createdAt: new Date().toISOString(),
-      });
-      setOrgForm({
-        name: "",
-        location: "",
-        orgType: "NGO",
-        activities: ["Fieldwork"],
-        areasOfWork: ["Community Development"],
-        website: "",
-        description: "",
-      });
-      alert("Organization profile published to directory!");
-    } finally { setSubmittingOrg(false); }
+    if (!newOrg.name) return;
+    await addDoc(collection(db, "organizations"), {
+      ...newOrg,
+      createdAt: serverTimestamp(),
+    });
+    setNewOrg({ name: "", sector: "", location: "", contactPerson: "", contactPhone: "" });
   };
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-white selection:bg-amber-500 selection:text-slate-950 pb-20">
-      <div className="border-b border-slate-800 bg-slate-900/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Admin Management</span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white">
-                Department Administrative Center
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Manage live faculty directories, organizations, notices, events, and gallery records.
-              </p>
-            </div>
+  const handleCreateDownload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDownload.title || !newDownload.fileUrl) return;
+    await addDoc(collection(db, "downloads"), {
+      ...newDownload,
+      createdAt: serverTimestamp(),
+    });
+    setNewDownload({ title: "", category: "Fieldwork", fileUrl: "" });
+  };
 
-            <div className="flex items-center gap-3">
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Student Dashboard</span>
-              </Link>
+  const handleDeleteItem = async (col: string, id: string) => {
+    if (confirm("Are you sure you want to permanently remove this entry?")) {
+      await deleteDoc(doc(db, col, id));
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-8 h-8 text-teal-700 animate-spin" />
+          <p className="text-xs font-semibold text-slate-500">Checking authorization status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Filtered lists
+  const pendingStudents = allUsers.filter((u) => u.status === "pending" || (!u.status && u.role === "student"));
+  const approvedStudents = allUsers.filter((u) => u.status === "approved" || u.role === "student");
+  const filteredRoster = approvedStudents.filter(
+    (u) =>
+      u.name?.toLowerCase().includes(rosterSearch.toLowerCase()) ||
+      u.email?.toLowerCase().includes(rosterSearch.toLowerCase()) ||
+      u.regNumber?.toLowerCase().includes(rosterSearch.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+
+        {/* Dashboard Top Header */}
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-black uppercase tracking-wider">
+                Institutional Administration
+              </span>
+              <span className="text-xs text-slate-400">Department of Social Work</span>
             </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Portal Governance & Control Console
+            </h1>
+            <p className="text-xs text-slate-500">
+              Authenticated Session: <span className="font-semibold text-teal-800">{currentUser?.email}</span>
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 mt-8 overflow-x-auto pb-2">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setActiveTab("staff")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                activeTab === "staff" ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400 border border-slate-800"
-              }`}
+              onClick={() => {
+                signOut(auth);
+                router.push("/login");
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 border border-slate-200 text-xs font-bold text-slate-700 transition"
             >
-              <Users className="w-4 h-4" />
-              <span>Faculty ({facultyMembers.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("organizations")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                activeTab === "organizations" ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400 border border-slate-800"
-              }`}
-            >
-              <Briefcase className="w-4 h-4" />
-              <span>Organizations ({organizations.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("notices")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                activeTab === "notices" ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400 border border-slate-800"
-              }`}
-            >
-              <Bell className="w-4 h-4" />
-              <span>Notices ({notices.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("events")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                activeTab === "events" ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400 border border-slate-800"
-              }`}
-            >
-              <CalendarIcon className="w-4 h-4" />
-              <span>Events ({events.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("gallery")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition shrink-0 ${
-                activeTab === "gallery" ? "bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-400 border border-slate-800"
-              }`}
-            >
-              <ImageIcon className="w-4 h-4" />
-              <span>Gallery ({galleryItems.length})</span>
+              <LogOut className="w-4 h-4" />
+              <span>Terminate Session</span>
             </button>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        {/* TAB 1: FACULTY */}
-        {activeTab === "staff" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <div className="lg:col-span-6 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-                <PlusCircle className="w-5 h-5 text-amber-400" />
-                <span>Create Faculty Profile</span>
-              </h2>
-              <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-2">Faculty Photo</label>
-                  <div className="flex items-center gap-4">
-                    <div className="relative w-16 h-16 rounded-2xl bg-slate-950 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
-                      {photoPreview ? <img src={photoPreview} alt="" className="w-full h-full object-cover" /> : <Camera className="w-5 h-5 text-slate-500" />}
-                    </div>
-                    <input type="file" ref={staffFileInputRef} accept="image/*" onChange={handlePhotoUpload} className="hidden" id="staff-pic" />
-                    <label htmlFor="staff-pic" className="px-3.5 py-2 rounded-xl bg-slate-800 text-slate-200 cursor-pointer font-semibold border border-slate-700">
-                      Upload Picture
-                    </label>
-                  </div>
-                </div>
-                <input type="text" required placeholder="Full Name & Title *" value={facultyForm.name} onChange={(e) => setFacultyForm({ ...facultyForm, name: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                <input type="text" required placeholder="Designation / Role *" value={facultyForm.designation} onChange={(e) => setFacultyForm({ ...facultyForm, designation: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                <div className="grid grid-cols-2 gap-4">
-                  <input type="text" placeholder="Degrees" value={facultyForm.qualification} onChange={(e) => setFacultyForm({ ...facultyForm, qualification: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                  <input type="email" required placeholder="Official Email *" value={facultyForm.email} onChange={(e) => setFacultyForm({ ...facultyForm, email: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                </div>
-                <input type="text" placeholder="Specialization" value={facultyForm.specialization} onChange={(e) => setFacultyForm({ ...facultyForm, specialization: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                <div className="grid grid-cols-2 gap-4">
-                  <input type="text" placeholder="Office Room" value={facultyForm.officeRoom} onChange={(e) => setFacultyForm({ ...facultyForm, officeRoom: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                  <input type="text" placeholder="Phone" value={facultyForm.phone} onChange={(e) => setFacultyForm({ ...facultyForm, phone: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                </div>
-                <button type="submit" disabled={submittingStaff} className="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
-                  {submittingStaff ? "Publishing..." : "Publish Profile"}
-                </button>
-              </form>
-            </div>
-            <div className="lg:col-span-6 space-y-3">
-              <h2 className="text-lg font-bold text-white">Active Faculty ({facultyMembers.length})</h2>
-              {facultyMembers.map((m) => (
-                <div key={m.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
-                  <div>
-                    <span className="text-sm font-bold text-white block">{m.name}</span>
-                    <p className="text-xs text-amber-400">{m.designation}</p>
-                  </div>
-                  <button onClick={() => deleteDoc(doc(db, "staff", m.id))} className="p-2 rounded bg-rose-500/10 text-rose-400">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
+        {/* Toast / Notification Alert */}
+        {actionMessage && (
+          <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-900 text-xs font-bold flex items-center gap-2 animate-in fade-in duration-200">
+            <CheckCircle2 className="w-4 h-4 text-teal-700 shrink-0" />
+            <span>{actionMessage}</span>
           </div>
         )}
 
-        {/* TAB 2: ORGANIZATIONS */}
-        {activeTab === "organizations" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <div className="lg:col-span-6 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
-              <div className="mb-6">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <PlusCircle className="w-5 h-5 text-amber-400" />
-                  <span>Add Organization Reference</span>
+        {/* Tab Navigation */}
+        <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-white border border-slate-200 shadow-xs">
+          <button
+            onClick={() => setActiveTab("approvals")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === "approvals"
+                ? "bg-teal-700 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            <UserCheck className="w-4 h-4" />
+            <span>Student Approvals</span>
+            {pendingStudents.length > 0 && (
+              <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-rose-500 text-white font-black">
+                {pendingStudents.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("roster")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === "roster"
+                ? "bg-teal-700 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Student Roster & Roles</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("profile")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === "profile"
+                ? "bg-teal-700 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            <UserCog className="w-4 h-4" />
+            <span>Admin Profile</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("notices")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === "notices"
+                ? "bg-teal-700 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            <Bell className="w-4 h-4" />
+            <span>Notices</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("events")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === "events"
+                ? "bg-teal-700 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Events</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("organizations")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === "organizations"
+                ? "bg-teal-700 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Agencies</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("downloads")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
+              activeTab === "downloads"
+                ? "bg-teal-700 text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+          >
+            <FileDown className="w-4 h-4" />
+            <span>Downloads</span>
+          </button>
+        </div>
+
+        {/* TAB 1: STUDENT APPROVALS QUEUE */}
+        {activeTab === "approvals" && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-base font-black text-slate-900">
+                  Pending Student Registrations ({pendingStudents.length})
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Add fieldwork agencies, visit centers, and internship organizations for student discovery.
+                <p className="text-xs text-slate-500">
+                  Review new student registrations before giving access to practicum downloads and fieldwork updates.
+                </p>
+              </div>
+              <button
+                onClick={fetchUsers}
+                className="text-xs font-bold text-teal-800 hover:underline inline-flex items-center gap-1"
+              >
+                Refresh Queue
+              </button>
+            </div>
+
+            {pendingStudents.length === 0 ? (
+              <div className="text-center py-12 space-y-3">
+                <CheckCircle2 className="w-10 h-10 text-teal-600 mx-auto" />
+                <p className="text-sm font-bold text-slate-700">No pending student approvals</p>
+                <p className="text-xs text-slate-400">All registered student accounts have been processed.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="pb-3 px-3">Student Name</th>
+                      <th className="pb-3 px-3">Email Address</th>
+                      <th className="pb-3 px-3">Roll / Reg Number</th>
+                      <th className="pb-3 px-3">Academic Batch</th>
+                      <th className="pb-3 px-3 text-right">Verification Decision</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {pendingStudents.map((stu) => (
+                      <tr key={stu.id} className="hover:bg-slate-50 transition">
+                        <td className="py-4 px-3 font-bold text-slate-900">{stu.name || "Unnamed Student"}</td>
+                        <td className="py-4 px-3 text-slate-600">{stu.email}</td>
+                        <td className="py-4 px-3 font-mono text-slate-600">{stu.regNumber || "Not Provided"}</td>
+                        <td className="py-4 px-3 text-slate-600">{stu.batch || "BSW"}</td>
+                        <td className="py-4 px-3 text-right space-x-2">
+                          <button
+                            onClick={() => handleUpdateStatus(stu.id, "approved")}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-700 hover:text-white text-teal-800 border border-teal-200 font-bold transition"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Approve</span>
+                          </button>
+                          <button
+                            onClick={() => handleUpdateStatus(stu.id, "rejected")}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-700 hover:text-white text-rose-700 border border-rose-200 font-bold transition"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Reject</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: STUDENT ROSTER & ROLE CONTROLS */}
+        {activeTab === "roster" && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-base font-black text-slate-900">
+                  Student Directory & Privilege Roster ({filteredRoster.length})
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Manage active student cohorts and assign elevated administrative capabilities.
                 </p>
               </div>
 
-              <form onSubmit={handleCreateOrg} className="space-y-4 text-xs">
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Organization Name *</label>
+              {/* Search Bar */}
+              <div className="relative w-full md:w-72">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or roll..."
+                  value={rosterSearch}
+                  onChange={(e) => setRosterSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 transition"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    <th className="pb-3 px-3">Student Name</th>
+                    <th className="pb-3 px-3">Email</th>
+                    <th className="pb-3 px-3">Registration ID</th>
+                    <th className="pb-3 px-3">Access Level</th>
+                    <th className="pb-3 px-3 text-right">Role Controls</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {filteredRoster.map((user) => (
+                    <tr key={user.id} className="hover:bg-slate-50 transition">
+                      <td className="py-4 px-3 font-bold text-slate-900">{user.name || "Student"}</td>
+                      <td className="py-4 px-3 text-slate-600">{user.email}</td>
+                      <td className="py-4 px-3 font-mono text-slate-500">{user.regNumber || "—"}</td>
+                      <td className="py-4 px-3">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                            user.role === "admin"
+                              ? "bg-purple-50 text-purple-800 border border-purple-200"
+                              : "bg-teal-50 text-teal-800 border border-teal-200"
+                          }`}
+                        >
+                          {user.role || "student"}
+                        </span>
+                      </td>
+                      <td className="py-4 px-3 text-right">
+                        <button
+                          onClick={() => handleToggleRole(user.id, user.role)}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-[11px] transition"
+                        >
+                          {user.role === "admin" ? "Demote to Student" : "Promote to Admin"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: ADMIN PROFILE SETTINGS */}
+        {activeTab === "profile" && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs max-w-2xl">
+            <div className="border-b border-slate-100 pb-4">
+              <h2 className="text-base font-black text-slate-900">
+                Administrator Profile & Coordinates
+              </h2>
+              <p className="text-xs text-slate-500">
+                Update your administrative coordinator information and institutional contact credentials.
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">Account Email</label>
+                <input
+                  type="email"
+                  disabled
+                  value={currentUser?.email || ""}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-xs text-slate-500 font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">Full Display Name</label>
+                <input
+                  type="text"
+                  required
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  placeholder="e.g. Dr. H. L. Vashum"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700">Designation / Role</label>
                   <input
                     type="text"
-                    required
-                    placeholder="e.g. Seven Sisters Development Assistance (SeSTA)"
-                    value={orgForm.name}
-                    onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                    value={profileDesignation}
+                    onChange={(e) => setProfileDesignation(e.target.value)}
+                    placeholder="Fieldwork Coordinator"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 outline-none"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Organization Type *</label>
-                  <select
-                    value={orgForm.orgType}
-                    onChange={(e) => setOrgForm({ ...orgForm, orgType: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500"
-                  >
-                    {orgTypeOptions.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Location (District / State) *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Senapati District, Manipur"
-                      value={orgForm.location}
-                      onChange={(e) => setOrgForm({ ...orgForm, location: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Official Website Link</label>
-                    <input
-                      type="url"
-                      placeholder="https://..."
-                      value={orgForm.website}
-                      onChange={(e) => setOrgForm({ ...orgForm, website: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Department Activities Conducted</label>
-                  <div className="flex flex-wrap gap-2">
-                    {activityOptions.map((act) => (
-                      <button
-                        type="button"
-                        key={act}
-                        onClick={() => toggleActivity(act)}
-                        className={`px-3 py-1.5 rounded-xl text-[11px] font-medium transition ${
-                          orgForm.activities.includes(act)
-                            ? "bg-amber-500 text-slate-950 font-bold"
-                            : "bg-slate-950 text-slate-400 border border-slate-800"
-                        }`}
-                      >
-                        {act}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1.5">Main Areas of Work</label>
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 bg-slate-950 rounded-xl border border-slate-800">
-                    {areaOptions.map((area) => (
-                      <button
-                        type="button"
-                        key={area}
-                        onClick={() => toggleArea(area)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition ${
-                          orgForm.areasOfWork.includes(area)
-                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                            : "bg-slate-900 text-slate-400 border border-slate-800"
-                        }`}
-                      >
-                        {area}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Description & Field Experience *</label>
-                  <textarea
-                    required
-                    rows={4}
-                    placeholder="Short description of the organization's work and activities conducted with the department..."
-                    value={orgForm.description}
-                    onChange={(e) => setOrgForm({ ...orgForm, description: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700">Contact Number</label>
+                  <input
+                    type="tel"
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 outline-none"
                   />
                 </div>
+              </div>
 
+              <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={submittingOrg}
-                  className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition disabled:opacity-50"
+                  disabled={profileSaving}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-xs transition"
                 >
-                  {submittingOrg ? "Publishing..." : "Save Organization to Directory"}
+                  {profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>Save Profile Updates</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* TAB 4: NOTICES MANAGEMENT */}
+        {activeTab === "notices" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
+                Post Circular or Bulletin
+              </h2>
+              <form onSubmit={handleCreateNotice} className="space-y-3">
+                <input
+                  type="text"
+                  required
+                  placeholder="Notice Title"
+                  value={newNotice.title}
+                  onChange={(e) => setNewNotice({ ...newNotice, title: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <select
+                  value={newNotice.category}
+                  onChange={(e) => setNewNotice({ ...newNotice, category: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                >
+                  <option>General</option>
+                  <option>Fieldwork</option>
+                  <option>Examinations</option>
+                  <option>Rural Camp</option>
+                </select>
+                <textarea
+                  rows={4}
+                  placeholder="Notice Details..."
+                  value={newNotice.content}
+                  onChange={(e) => setNewNotice({ ...newNotice, content: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newNotice.isUrgent}
+                    onChange={(e) => setNewNotice({ ...newNotice, isUrgent: e.target.checked })}
+                    className="rounded text-teal-700"
+                  />
+                  <span>Mark as Urgent Notice</span>
+                </label>
+                <button type="submit" className="w-full py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold">
+                  Publish Notice
                 </button>
               </form>
             </div>
 
-            <div className="lg:col-span-6 space-y-3">
-              <h2 className="text-lg font-bold text-white">Active Organizations ({organizations.length})</h2>
-              {organizations.map((org) => (
-                <div key={org.id} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
+            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
+                Published Notices ({notices.length})
+              </h2>
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                {notices.map((n) => (
+                  <div key={n.id} className="p-3.5 rounded-2xl border border-slate-100 hover:border-slate-200 flex items-start justify-between gap-4">
                     <div>
-                      <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase">
-                        {org.orgType}
-                      </span>
-                      <h4 className="text-sm font-bold text-white mt-1">{org.name}</h4>
-                      <p className="text-xs text-slate-400">{org.location}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900">{n.title}</span>
+                        {n.isUrgent && <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-black">Urgent</span>}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{n.content}</p>
                     </div>
-                    <button
-                      onClick={() => deleteDoc(doc(db, "organizations", org.id))}
-                      className="p-2 rounded bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition"
-                    >
+                    <button onClick={() => handleDeleteItem("notices", n.id)} className="p-1.5 text-slate-400 hover:text-rose-600">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: NOTICES */}
-        {activeTab === "notices" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <div className="lg:col-span-5 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-                <PlusCircle className="w-5 h-5 text-amber-400" />
-                <span>Publish Notice</span>
-              </h2>
-              <form onSubmit={handleCreateNotice} className="space-y-4 text-xs">
-                <input type="text" required placeholder="Notice Title *" value={noticeForm.title} onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                <div className="grid grid-cols-2 gap-4">
-                  <select value={noticeForm.category} onChange={(e) => setNoticeForm({ ...noticeForm, category: e.target.value as any })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500">
-                    <option value="Academic">Academic</option>
-                    <option value="Fieldwork">Fieldwork</option>
-                    <option value="Examinations">Examinations</option>
-                    <option value="Urgent">Urgent</option>
-                  </select>
-                  <input type="date" value={noticeForm.date} onChange={(e) => setNoticeForm({ ...noticeForm, date: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                </div>
-                <textarea required rows={4} placeholder="Description..." value={noticeForm.description} onChange={(e) => setNoticeForm({ ...noticeForm, description: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                <input type="url" placeholder="Attachment Link (Optional)" value={noticeForm.attachmentUrl} onChange={(e) => setNoticeForm({ ...noticeForm, attachmentUrl: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                <button type="submit" disabled={submittingNotice} className="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
-                  {submittingNotice ? "Publishing..." : "Post Notice"}
-                </button>
-              </form>
-            </div>
-            <div className="lg:col-span-7 space-y-3">
-              <h2 className="text-lg font-bold text-white">Live Notices ({notices.length})</h2>
-              {notices.map((n) => (
-                <div key={n.id} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-white">{n.title}</h4>
-                    <p className="text-xs text-slate-400">{n.category} • {n.date}</p>
-                  </div>
-                  <button onClick={() => deleteDoc(doc(db, "notices", n.id))} className="p-2 rounded bg-rose-500/10 text-rose-400">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: EVENTS */}
+        {/* TAB 5: EVENTS MANAGEMENT */}
         {activeTab === "events" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <div className="lg:col-span-5 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-                <PlusCircle className="w-5 h-5 text-amber-400" />
-                <span>Schedule Event</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
+                Schedule Department Event
               </h2>
-              <form onSubmit={handleCreateEvent} className="space-y-4 text-xs">
-                <input type="text" required placeholder="Event Title *" value={eventForm.title} onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                <div className="grid grid-cols-2 gap-4">
-                  <input type="date" required value={eventForm.date} onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                  <input type="text" required placeholder="Time *" value={eventForm.time} onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <select value={eventForm.category} onChange={(e) => setEventForm({ ...eventForm, category: e.target.value as any })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500">
-                    <option value="Academic">Academic</option>
-                    <option value="Fieldwork">Fieldwork</option>
-                    <option value="Camp">Rural Camp</option>
-                    <option value="Seminar">Seminar</option>
-                  </select>
-                  <input type="text" required placeholder="Venue *" value={eventForm.venue} onChange={(e) => setEventForm({ ...eventForm, venue: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                </div>
-                <textarea required rows={4} placeholder="Description & Agenda *" value={eventForm.description} onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                <button type="submit" disabled={submittingEvent} className="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
-                  {submittingEvent ? "Publishing..." : "Schedule Event"}
+              <form onSubmit={handleCreateEvent} className="space-y-3">
+                <input
+                  type="text"
+                  required
+                  placeholder="Event Title"
+                  value={newEvent.title}
+                  onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <input
+                  type="date"
+                  required
+                  value={newEvent.date}
+                  onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <input
+                  type="text"
+                  placeholder="Venue (e.g., Seminar Hall / Maram)"
+                  value={newEvent.venue}
+                  onChange={(e) => setNewEvent({ ...newEvent, venue: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <textarea
+                  rows={3}
+                  placeholder="Brief summary..."
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <button type="submit" className="w-full py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold">
+                  Schedule Event
                 </button>
               </form>
             </div>
-            <div className="lg:col-span-7 space-y-3">
-              <h2 className="text-lg font-bold text-white">Scheduled Events ({events.length})</h2>
-              {events.map((ev) => (
-                <div key={ev.id} className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px] font-bold">{ev.category}</span>
-                    <button onClick={() => deleteDoc(doc(db, "events", ev.id))} className="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
+
+            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
+                Upcoming Academic Calendar ({events.length})
+              </h2>
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                {events.map((ev) => (
+                  <div key={ev.id} className="p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">{ev.title}</h4>
+                      <p className="text-[11px] text-slate-500">{ev.date} — {ev.venue}</p>
+                    </div>
+                    <button onClick={() => handleDeleteItem("events", ev.id)} className="p-1.5 text-slate-400 hover:text-rose-600">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: ORGANIZATIONS DIRECTORY */}
+        {activeTab === "organizations" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
+                Add Fieldwork Partner Agency
+              </h2>
+              <form onSubmit={handleCreateOrg} className="space-y-3">
+                <input
+                  type="text"
+                  required
+                  placeholder="Organization / NGO Name"
+                  value={newOrg.name}
+                  onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <input
+                  type="text"
+                  placeholder="Sector (e.g. Child Rights, Health)"
+                  value={newOrg.sector}
+                  onChange={(e) => setNewOrg({ ...newOrg, sector: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <input
+                  type="text"
+                  placeholder="Location / District"
+                  value={newOrg.location}
+                  onChange={(e) => setNewOrg({ ...newOrg, location: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <input
+                  type="text"
+                  placeholder="Contact Person"
+                  value={newOrg.contactPerson}
+                  onChange={(e) => setNewOrg({ ...newOrg, contactPerson: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <button type="submit" className="w-full py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold">
+                  Register Agency
+                </button>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
+                Partner Agencies Directory ({organizations.length})
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2">
+                {organizations.map((org) => (
+                  <div key={org.id} className="p-3.5 rounded-2xl border border-slate-100 flex items-start justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">{org.name}</h4>
+                      <p className="text-[11px] text-teal-800 font-semibold">{org.sector}</p>
+                      <p className="text-[11px] text-slate-400 mt-1">{org.location}</p>
+                    </div>
+                    <button onClick={() => handleDeleteItem("organizations", org.id)} className="p-1 text-slate-400 hover:text-rose-600">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <h4 className="text-sm font-bold text-white">{ev.title}</h4>
-                  <p className="text-xs text-slate-400">{ev.date} • {ev.time} • {ev.venue}</p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* TAB 5: GALLERY */}
-        {activeTab === "gallery" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <div className="lg:col-span-5 rounded-3xl bg-slate-900/70 border border-slate-800 p-6 sm:p-8 shadow-xl">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-                <PlusCircle className="w-5 h-5 text-amber-400" />
-                <span>Upload Fieldwork Photo</span>
+        {/* TAB 7: PRACTICUM DOWNLOADS */}
+        {activeTab === "downloads" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
+                Add Resource Download
               </h2>
-              <form onSubmit={handleCreateGallery} className="space-y-4 text-xs">
-                <div className="relative aspect-video rounded-2xl bg-slate-950 border border-slate-700 flex items-center justify-center overflow-hidden">
-                  {galleryPhotoPreview ? <img src={galleryPhotoPreview} alt="" className="w-full h-full object-cover" /> : <ImageIcon className="w-8 h-8 text-slate-600" />}
-                </div>
-                <input type="file" ref={galleryFileInputRef} accept="image/*" onChange={handleGalleryPhotoUpload} className="hidden" id="gal-file" />
-                <label htmlFor="gal-file" className="block text-center py-2 rounded-xl bg-slate-800 text-slate-200 cursor-pointer font-semibold border border-slate-700">
-                  Select Picture
-                </label>
-                <input type="text" required placeholder="Activity Title *" value={galleryForm.title} onChange={(e) => setGalleryForm({ ...galleryForm, title: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                <div className="grid grid-cols-2 gap-4">
-                  <select value={galleryForm.category} onChange={(e) => setGalleryForm({ ...galleryForm, category: e.target.value as any })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500">
-                    <option value="Fieldwork">Fieldwork</option>
-                    <option value="Rural Camp">Rural Camp</option>
-                    <option value="Workshops">Workshops</option>
-                    <option value="Community">Community Action</option>
-                  </select>
-                  <input type="date" value={galleryForm.date} onChange={(e) => setGalleryForm({ ...galleryForm, date: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                </div>
-                <textarea rows={3} placeholder="Caption..." value={galleryForm.caption} onChange={(e) => setGalleryForm({ ...galleryForm, caption: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-amber-500" />
-                <button type="submit" disabled={submittingGallery} className="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
-                  {submittingGallery ? "Uploading..." : "Publish Photo"}
+              <form onSubmit={handleCreateDownload} className="space-y-3">
+                <input
+                  type="text"
+                  required
+                  placeholder="Document Name / Title"
+                  value={newDownload.title}
+                  onChange={(e) => setNewDownload({ ...newDownload, title: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <select
+                  value={newDownload.category}
+                  onChange={(e) => setNewDownload({ ...newDownload, category: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                >
+                  <option>Fieldwork</option>
+                  <option>Syllabus</option>
+                  <option>Guidelines</option>
+                  <option>Reports</option>
+                </select>
+                <input
+                  type="url"
+                  required
+                  placeholder="File Link (Google Drive / Firebase URL)"
+                  value={newDownload.fileUrl}
+                  onChange={(e) => setNewDownload({ ...newDownload, fileUrl: e.target.value })}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                />
+                <button type="submit" className="w-full py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold">
+                  Publish Download
                 </button>
               </form>
             </div>
-            <div className="lg:col-span-7 space-y-3">
-              <h2 className="text-lg font-bold text-white">Live Gallery Photos ({galleryItems.length})</h2>
-              <div className="grid grid-cols-2 gap-3">
-                {galleryItems.map((g) => (
-                  <div key={g.id} className="p-2 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1">
-                    <img src={g.imageUrl} alt="" className="aspect-video w-full object-cover rounded-xl" />
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-xs font-bold text-white truncate">{g.title}</span>
-                      <button onClick={() => deleteDoc(doc(db, "gallery", g.id))} className="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
-                        <Trash2 className="w-3.5 h-3.5" />
+
+            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
+                Published Resources ({downloads.length})
+              </h2>
+              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                {downloads.map((d) => (
+                  <div key={d.id} className="p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">{d.title}</h4>
+                      <p className="text-[11px] text-teal-800 font-semibold">{d.category}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a href={d.fileUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 text-teal-700 hover:underline text-xs flex items-center gap-1">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                      <button onClick={() => handleDeleteItem("downloads", d.id)} className="p-1.5 text-slate-400 hover:text-rose-600">
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -764,6 +896,7 @@ export default function AdminPortalPage() {
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

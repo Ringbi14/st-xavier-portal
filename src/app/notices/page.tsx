@@ -2,193 +2,220 @@
 
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { 
   Bell, 
   Calendar, 
-  AlertCircle, 
-  ExternalLink, 
   Search, 
-  FileText 
+  FileText, 
+  Download, 
+  Tag, 
+  AlertCircle,
+  ChevronRight,
+  ExternalLink
 } from "lucide-react";
 
-interface NoticeItem {
+interface Notice {
   id: string;
   title: string;
-  category: "Academic" | "Fieldwork" | "Examinations" | "Urgent";
+  date: string;
+  category?: string;
   description: string;
+  content?: string;
   attachmentUrl?: string;
   isImportant?: boolean;
-  date: string;
 }
 
-const FALLBACK_NOTICES: NoticeItem[] = [
+const DEFAULT_NOTICES: Notice[] = [
   {
-    id: "notice-1",
-    title: "Concurrent Fieldwork Placement Allocation – Semester Schedule",
+    id: "not-1",
+    title: "Submission of Concurrent Fieldwork Process Recordings",
+    date: "2026-03-02",
     category: "Fieldwork",
-    description: "Students are instructed to report to their designated agency supervisors starting next Tuesday. Agency logbooks must be signed weekly.",
-    date: "2026-09-01",
+    description: "All BSW students must submit their weekly casework and group work process recordings to assigned faculty supervisors by Friday.",
     isImportant: true,
   },
   {
-    id: "notice-2",
-    title: "Submission of Casework & Social Group Work Process Records",
-    category: "Academic",
-    description: "All first-year BSW scholars must submit their initial two verbatim process reports to their faculty supervisors by Friday.",
-    date: "2026-08-28",
+    id: "not-2",
+    title: "Rural Educational Camp Schedule & Orientation",
+    date: "2026-02-20",
+    category: "Important",
+    description: "Detailed orientation briefing regarding the upcoming 7-day rural educational immersion camp in Senapati district.",
+    isImportant: true,
   },
   {
-    id: "notice-3",
-    title: "Rural Educational Camp – Advance Planning & Committee Meeting",
-    category: "Fieldwork",
-    description: "Briefing for student conveners regarding logistical preparation, village community surveys, and cultural night planning.",
-    date: "2026-08-20",
-  }
+    id: "not-3",
+    title: "Internal Assessment Routine — Department of Social Work",
+    date: "2026-02-15",
+    category: "Examination",
+    description: "The timetable for mid-semester internal assessments covering Social Casework and Social Group Work methodologies.",
+  },
+  {
+    id: "not-4",
+    title: "Guest Lecture on Tribal Rights and Grassroots Social Action",
+    date: "2026-02-10",
+    category: "General",
+    description: "Special academic lecture session by regional civil society practitioners in the department seminar hall.",
+  },
 ];
 
 export default function NoticesPage() {
-  const [notices, setNotices] = useState<NoticeItem[]>(FALLBACK_NOTICES);
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-
-  const categories = ["All", "Fieldwork", "Academic", "Examinations", "Urgent"];
+  const [notices, setNotices] = useState<Notice[]>(DEFAULT_NOTICES);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   useEffect(() => {
     try {
-      const q = query(collection(db, "notices"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsub = onSnapshot(collection(db, "notices"), (snapshot) => {
         if (!snapshot.empty) {
-          const fetched: NoticeItem[] = snapshot.docs.map((doc) => ({
+          const loaded = snapshot.docs.map((doc) => ({
             id: doc.id,
-            ...(doc.data() as Omit<NoticeItem, "id">),
-          }));
-          // Sort newest dates first
-          fetched.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          setNotices(fetched);
-        } else {
-          setNotices(FALLBACK_NOTICES);
+            ...doc.data(),
+          })) as Notice[];
+          setNotices(loaded);
         }
       });
-      return () => unsubscribe();
+      return () => unsub();
     } catch (err) {
-      console.warn("Using fallback notices:", err);
-      setNotices(FALLBACK_NOTICES);
+      console.warn("Firestore notices subscription error:", err);
     }
   }, []);
 
-  const filteredNotices = notices.filter((item) => {
-    const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+  const categories = ["All", "Fieldwork", "Important", "Examination", "General"];
+
+  const filteredNotices = notices.filter((notice) => {
+    const matchesSearch =
+      notice.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      notice.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "All" ||
+      notice.category?.toLowerCase() === selectedCategory.toLowerCase() ||
+      (selectedCategory === "Important" && notice.isImportant);
+    return matchesSearch && matchesCategory;
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white selection:bg-amber-500 selection:text-slate-950 pb-20">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24">
       
       {/* Header Banner */}
-      <div className="border-b border-slate-800 bg-slate-900/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2">
-              <Bell className="w-3.5 h-3.5" />
-              <span>Official Announcements</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">
-              Notice Board & Circulars
-            </h1>
-            <p className="text-sm sm:text-base text-slate-400 mt-2 leading-relaxed">
-              Official circulars, field practicum announcements, examination notifications, and departmental memos.
-            </p>
+      <section className="bg-white border-b border-slate-200 py-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold mb-4">
+            <Bell className="w-3.5 h-3.5" />
+            <span>Academic Bulletins & Notifications</span>
           </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            Department Circulars & Notices
+          </h1>
+          <p className="text-sm sm:text-base text-slate-600 mt-2 max-w-3xl leading-relaxed">
+            Official announcements, examination schedules, fieldwork guidelines, and urgent departmental notifications for students and faculty.
+          </p>
         </div>
-      </div>
+      </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+      {/* Main Content */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-6">
         
-        {/* Search & Filter Controls */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Controls */}
+        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search circulars by keyword..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 transition"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
+            <span className="text-slate-400 font-semibold mr-1 flex items-center gap-1">
+              <Tag className="w-3.5 h-3.5" /> Category:
+            </span>
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
                   selectedCategory === cat
-                    ? "bg-amber-500 text-slate-950"
-                    : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
+                    ? "bg-teal-700 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
                 {cat}
               </button>
             ))}
           </div>
-
-          <div className="relative w-full md:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search circulars..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
-            />
-          </div>
         </div>
 
-        {/* Notices Cards List */}
+        {/* Notices List */}
         <div className="space-y-4">
           {filteredNotices.map((notice) => (
             <div
               key={notice.id}
-              className={`p-6 rounded-3xl bg-slate-900/60 border transition hover:border-slate-700 ${
-                notice.isImportant ? "border-amber-500/40 bg-amber-500/[0.02]" : "border-slate-800"
+              className={`p-6 rounded-2xl bg-white border transition shadow-xs space-y-3 ${
+                notice.isImportant
+                  ? "border-amber-300 ring-1 ring-amber-200/60"
+                  : "border-slate-200 hover:border-teal-300"
               }`}
             >
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider">
-                    {notice.category}
-                  </span>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
                   {notice.isImportant && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
                       <AlertCircle className="w-3 h-3" />
-                      Priority Notice
+                      <span>Urgent</span>
                     </span>
                   )}
+                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200 uppercase tracking-wider">
+                    {notice.category || "Notice"}
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                  <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+                  <Calendar className="w-3.5 h-3.5" />
                   <span>{notice.date}</span>
                 </div>
               </div>
 
-              <h2 className="text-lg font-bold text-white mb-2">{notice.title}</h2>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">{notice.description}</p>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">{notice.title}</h3>
+                <p className="text-xs sm:text-sm text-slate-600 mt-1 leading-relaxed">
+                  {notice.description}
+                </p>
+                {notice.content && (
+                  <p className="text-xs text-slate-500 mt-2 p-3 rounded-xl bg-slate-50 border border-slate-100 whitespace-pre-line leading-relaxed">
+                    {notice.content}
+                  </p>
+                )}
+              </div>
 
               {notice.attachmentUrl && (
-                <a
-                  href={notice.attachmentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-xs font-bold text-amber-400 hover:text-amber-300 transition"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>Download / View Official Circular PDF</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <a
+                    href={notice.attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
+                  >
+                    <Download className="w-3.5 h-3.5 text-teal-700" />
+                    <span>Download Attachment</span>
+                    <ExternalLink className="w-3 h-3 opacity-60" />
+                  </a>
+                </div>
               )}
             </div>
           ))}
-
-          {filteredNotices.length === 0 && (
-            <div className="p-12 text-center rounded-3xl bg-slate-900/30 border border-dashed border-slate-800 text-xs text-slate-400">
-              No notices match your current filters.
-            </div>
-          )}
         </div>
+
+        {/* Empty State */}
+        {filteredNotices.length === 0 && (
+          <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+            <Bell className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-sm font-bold text-slate-900">No notices found</h3>
+            <p className="text-xs text-slate-500 mt-1">Try switching categories or clearing your search term.</p>
+          </div>
+        )}
 
       </div>
     </div>

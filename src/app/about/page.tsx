@@ -2,210 +2,230 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { 
-  Building2, 
-  Target, 
   Compass, 
+  Target, 
+  Award, 
   BookOpen, 
-  History, 
+  Users, 
+  Building2, 
+  Briefcase, 
+  HeartHandshake, 
+  Sparkles, 
   CheckCircle2, 
+  Calendar,
   ArrowRight
 } from "lucide-react";
 
 export default function AboutPage() {
-  const historyMilestones = [
+  const coreValues = [
     {
-      period: "[Year / Era]",
-      phase: "[Phase I: Department Foundation & Inception]",
-      description:
-        "[Detailed milestone will be documented here: establishment of the Department of Social Work under St. Xavier College, initial batch intake, and institutional founding vision.]",
+      title: "Human Dignity & Social Justice",
+      desc: "Upholding the inherent worth of every individual and confronting systemic inequalities across marginalized communities.",
     },
     {
-      period: "[Academic Milestone]",
-      phase: "[Phase II: Field Practicum & Agency Linkages]",
-      description:
-        "[Detailed milestone will be documented here: introduction of concurrent fieldwork placements, agency partnerships across Manipur, and curriculum structuring.]",
+      title: "Integrity & Professional Ethics",
+      desc: "Operating with absolute transparency, confidentiality, and professional accountability as guided by national social work codes.",
     },
     {
-      period: "[Practicum Milestone]",
-      phase: "[Phase III: Rural Educational Camp Tradition]",
-      description:
-        "[Detailed milestone will be documented here: institutionalization of the annual rural camp practicum, participatory rural appraisals (PRA), and grassroots community outreach.]",
+      title: "Community Immersion",
+      desc: "Grounded praxis through continuous, respectful engagement with indigenous rural communities across Senapati and Manipur.",
     },
     {
-      period: "[Present & Future]",
-      phase: "[Phase IV: Contemporary Digital & Regional Transformation]",
-      description:
-        "[Detailed milestone will be documented here: launch of the digital academic portal, enhanced field research, student internships, and regional community development initiatives.]",
+      title: "Reflective Praxis",
+      desc: "Synthesizing theoretical casework frameworks with supervised weekly field recordings and analytical conferences.",
     },
   ];
 
-  const objectives = [
+  const methodologyPillars = [
     {
-      title: "Concurrent Field Practicum",
-      desc: "Providing two days a week of structured field agency immersion, bridging social work theory with grassroots application.",
+      name: "Social Casework",
+      desc: "Working with individuals and families facing psychosocial challenges through systematic assessment and supportive intervention.",
     },
     {
-      title: "Participatory Methodologies",
-      desc: "Training undergraduates in Participatory Rural Appraisal (PRA), community needs assessments, and social action models.",
+      name: "Social Group Work",
+      desc: "Facilitating group dynamics, youth leadership, and peer support systems to enhance social functioning and collaboration.",
     },
     {
-      title: "Ethical & Reflexive Practice",
-      desc: "Instilling core professional values, human rights advocacy, and cultural sensitivity across diverse communities in the Northeast.",
+      name: "Community Organization",
+      desc: "Mobilizing grassroots collectives to identify local needs, utilize community resources, and build sustainable local infrastructure.",
     },
     {
-      title: "Supervised Conferences",
-      desc: "Weekly Individual Conferences (IC) and Group Conferences (GC) providing direct faculty guidance on process recordings.",
+      name: "Social Action & Research",
+      desc: "Conducting empirical field research and participatory rural appraisals to advocate for structural policy reform and rights.",
+    },
+  ];
+
+  const historyMilestones = [
+    {
+      year: "2019",
+      title: "Establishment of the Department",
+      desc: "The Department of Social Work was formally established at St. Xavier College, Maram Khunou, introducing the Bachelor of Social Work (BSW) curriculum affiliated with Manipur University.",
+    },
+    {
+      year: "2020–2021",
+      title: "Fieldwork Network Foundation",
+      desc: "Formulated formal institutional linkages with civil society organizations, health centers, and community institutions across Senapati district.",
+    },
+    {
+      year: "2022–2024",
+      title: "Rural Educational Camps & Outreach",
+      desc: "Expanded annual intensive 7-day rural educational camps, conducting participatory rural appraisals (PRA), health camps, and cultural documentation.",
+    },
+    {
+      year: "2025–Present",
+      title: "Digital Ecosystem & Regional Impact",
+      desc: "Launched centralized digital archives, formal alumni networks, and expanded block internship placements across Northeast India.",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white selection:bg-amber-500 selection:text-slate-950 pb-20">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
       
       {/* Header Banner */}
-      <section className="border-b border-slate-800 bg-slate-900/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-4">
-              <Building2 className="w-3.5 h-3.5" />
-              <span>St. Xavier College, Maram Khunou</span>
-            </div>
-            <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
-              Department of <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200">
-                Social Work
-              </span>
-            </h1>
-            <p className="text-sm sm:text-base text-slate-300 mt-4 leading-relaxed">
-              Dedicated to preparing competent, ethical, and reflective social work practitioners committed to social justice, community empowerment, and grassroots transformation in Manipur and beyond.
-            </p>
+      <section className="bg-white border-b border-slate-200 py-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold mb-4">
+            <Compass className="w-3.5 h-3.5" />
+            <span>Academic Identity & Philosophy</span>
           </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            About the Department of Social Work
+          </h1>
+          <p className="text-sm sm:text-base text-slate-600 mt-2 max-w-3xl leading-relaxed">
+            St. Xavier College, Maram Khunou — Preparing professional social workers grounded in ethical discernment, scientific inquiry, and grassroots community commitment.
+          </p>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 space-y-16">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 space-y-12">
         
-        {/* Overview */}
-        <section className="p-8 sm:p-10 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
-          <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
-            <BookOpen className="w-4 h-4" />
-            <span>Department Overview</span>
-          </div>
-          <h2 className="text-2xl font-black text-white">
-            Professional Social Work Education in Manipur
-          </h2>
-          <p className="text-sm text-slate-300 leading-relaxed">
-            The Department of Social Work at St. Xavier College, Maram Khunou, provides a rigorous undergraduate programme designed to cultivate visionary social changemakers. Blending intensive theoretical modules in sociology, developmental psychology, social legislation, and casework with continuous field agency immersion, our students are groomed to address systemic challenges across tribal, rural, and urban landscapes.
-          </p>
-        </section>
-
-        {/* History Timeline */}
-        <section className="space-y-6">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-              <History className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Chronicle</span>
-              <h2 className="text-2xl font-black text-white">Department History & Milestones</h2>
-            </div>
-          </div>
-
-          <div className="relative border-l-2 border-slate-800 ml-4 pl-6 sm:pl-8 space-y-8">
-            {historyMilestones.map((m, idx) => (
-              <div key={idx} className="relative group">
-                <div className="absolute -left-[31px] sm:-left-[39px] top-1 w-4 h-4 rounded-full bg-slate-950 border-2 border-amber-400 group-hover:bg-amber-400 transition" />
-                
-                <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/50 border border-slate-800/80 hover:border-amber-500/30 transition space-y-2">
-                  <span className="inline-block px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-mono text-[11px] font-bold">
-                    {m.period}
-                  </span>
-                  <h3 className="text-base font-bold text-white">{m.phase}</h3>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                    {m.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-900/30 border border-dashed border-slate-800 text-xs text-slate-500 italic">
-            * Note for Administrators: The milestones above represent structured placeholders. Verified department archival dates, founders, and chronological records will be updated as authenticated college records are entered.
-          </div>
-        </section>
-
         {/* Vision & Mission */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="p-8 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Target className="w-6 h-6" />
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 flex items-center justify-center">
+              <Target className="w-5 h-5" />
             </div>
-            <h2 className="text-xl font-bold text-white">Our Vision</h2>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              To be a premier center of social work education in the region, fostering transformational leaders equipped with intellectual rigor, critical consciousness, and profound dedication to uplifting vulnerable and marginalized populations.
+            <h2 className="text-lg font-bold text-slate-900">Department Vision</h2>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              To be a premier center of social work education and community engagement in Northeast India, forming competent, compassionate, and ethical practitioners committed to justice, peace, and sustainable human development.
             </p>
           </div>
 
-          <div className="p-8 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Compass className="w-6 h-6" />
+          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 flex items-center justify-center">
+              <Award className="w-5 h-5" />
             </div>
-            <h2 className="text-xl font-bold text-white">Our Mission</h2>
-            <p className="text-sm text-slate-300 leading-relaxed">
-              To provide evidence-based curricula and intensive community field immersion that bridge academic scholarship with community realities, cultivating ethical practitioners who advocate for human rights, equality, and sustainable development.
-            </p>
+            <h2 className="text-lg font-bold text-slate-900">Department Mission</h2>
+            <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
+                <span>Deliver rigorous classroom pedagogy integrated with supervised concurrent fieldwork.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
+                <span>Empower marginalized communities through participatory rural appraisals and action research.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
+                <span>Inculcate professional values of empathy, social equality, and institutional accountability.</span>
+              </li>
+            </ul>
           </div>
         </section>
 
-        {/* Educational Pillars */}
-        <section className="space-y-6">
+        {/* Core Values */}
+        <section className="space-y-4">
           <div>
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-              Educational Pillars
+            <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
+              Guiding Principles
             </span>
-            <h2 className="text-2xl font-extrabold text-white mt-1">
-              Fieldwork & Academic Framework
+            <h2 className="text-2xl font-black text-slate-900 mt-0.5">
+              Core Professional Values
             </h2>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {objectives.map((obj) => (
-              <div
-                key={obj.title}
-                className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-2 hover:border-amber-500/30 transition"
-              >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-amber-400 shrink-0" />
-                  <h3 className="text-base font-bold text-white">{obj.title}</h3>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-400 pl-7 leading-relaxed">
-                  {obj.desc}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {coreValues.map((val, idx) => (
+              <div key={idx} className="p-5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1.5">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-teal-700" />
+                  <span>{val.title}</span>
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed pl-4">
+                  {val.desc}
                 </p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Explore Directory Banner */}
-        <section className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-amber-500/15 via-slate-900 to-slate-900 border border-amber-500/30 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2 max-w-xl">
-            <h3 className="text-xl sm:text-2xl font-black text-white">
-              Fieldwork & Organization Partnerships
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Discover NGOs, government institutions, hospitals, and community programs where our students undergo orientation visits, concurrent fieldwork, and summer internships.
-            </p>
+        {/* Social Work Methods Taught */}
+        <section className="space-y-4">
+          <div>
+            <span className="text-xs font-bold text-teal-800 uppercase tracking-wider">
+              Curriculum Core
+            </span>
+            <h2 className="text-2xl font-black text-slate-900 mt-0.5">
+              Social Work Methods & Practice
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {methodologyPillars.map((m, idx) => (
+              <div key={idx} className="p-4 rounded-xl bg-white border border-slate-200 shadow-xs space-y-2">
+                <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-800 border border-teal-200 flex items-center justify-center font-bold text-xs">
+                  0{idx + 1}
+                </div>
+                <h3 className="text-xs font-bold text-slate-900">{m.name}</h3>
+                <p className="text-[11px] text-slate-500 leading-relaxed">{m.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Department History Timeline */}
+        <section className="p-8 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Department Chronicle</span>
+              </span>
+              <h2 className="text-2xl font-black text-slate-900 mt-0.5">
+                History & Milestones
+              </h2>
+            </div>
+            <span className="text-xs font-mono px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+              Est. 2019
+            </span>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <Link
-              href="/organizations"
-              className="flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition shadow-lg shadow-amber-500/10"
-            >
-              <span>Explore Organizations</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+          <div className="relative border-l-2 border-slate-200 pl-6 space-y-8 ml-2">
+            {historyMilestones.map((h, idx) => (
+              <div key={idx} className="relative group">
+                {/* Dot */}
+                <div className="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-white border-2 border-teal-700 shadow-xs" />
+                <span className="text-xs font-bold text-teal-800 font-mono">{h.year}</span>
+                <h4 className="text-sm font-bold text-slate-900 mt-0.5">{h.title}</h4>
+                <p className="text-xs text-slate-600 leading-relaxed mt-1">{h.desc}</p>
+              </div>
+            ))}
           </div>
+        </section>
+
+        {/* Next Step Callout */}
+        <section className="p-6 rounded-2xl bg-teal-50/70 border border-teal-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-slate-900">Explore Fieldwork Opportunities</h3>
+            <p className="text-xs text-slate-600">Browse the directory of agencies and NGOs partnered with our department.</p>
+          </div>
+          <Link
+            href="/organizations"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition shadow-xs shrink-0"
+          >
+            <span>View Agency Directory</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
         </section>
 
       </div>

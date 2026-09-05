@@ -2,205 +2,219 @@
 
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { 
   Calendar as CalendarIcon, 
-  Clock, 
   MapPin, 
+  Clock, 
   Search, 
   Tag, 
-  Sparkles 
+  UserCheck, 
+  Sparkles,
+  ChevronRight
 } from "lucide-react";
 
 interface EventItem {
   id: string;
   title: string;
   date: string;
-  time: string;
+  time?: string;
   venue: string;
-  category: "Fieldwork" | "Academic" | "Seminar" | "Camp";
+  category?: string;
   description: string;
+  organizer?: string;
+  resourcePerson?: string;
 }
 
-const FALLBACK_EVENTS: EventItem[] = [
+const DEFAULT_EVENTS: EventItem[] = [
   {
-    id: "e-1",
-    title: "BSW Fieldwork Practicum Orientation",
-    date: "2026-09-10",
+    id: "evt-1",
+    title: "Annual Rural Educational Camp (7 Days)",
+    date: "2026-03-25",
+    time: "08:00 AM - 05:00 PM",
+    venue: "Rural Village Cluster, Senapati District",
+    category: "Rural Camp",
+    description: "Intensive 7-day community living, participatory rural appraisal (PRA), village surveys, and community youth initiatives.",
+    organizer: "Department of Social Work",
+    resourcePerson: "Faculty Supervisors & Village Council Leaders",
+  },
+  {
+    id: "evt-2",
+    title: "Supervisory Fieldwork Individual Conference",
+    date: "2026-03-12",
     time: "10:00 AM - 01:00 PM",
-    venue: "Main Auditorium, Academic Block",
-    category: "Fieldwork",
-    description: "Compulsory orientation on agency code of ethics, supervisory recording standards, and agency allocation criteria.",
-  },
-  {
-    id: "e-2",
-    title: "Workshop on Community Social Assessment & PRA Tools",
-    date: "2026-09-18",
-    time: "11:00 AM - 03:30 PM",
     venue: "Social Work Seminar Hall",
-    category: "Seminar",
-    description: "Hands-on workshop demonstrating resource mapping, seasonal calendars, and Venn diagrams for community practice.",
+    category: "Fieldwork",
+    description: "One-on-one evaluative conferences analyzing weekly student casework recordings and agency interventions.",
+    organizer: "Fieldwork Coordination Desk",
+    resourcePerson: "Department Field Supervisors",
   },
   {
-    id: "e-3",
-    title: "Pre-Camp Logistics & Planning Conference",
-    date: "2026-10-02",
-    time: "02:00 PM - 04:30 PM",
-    venue: "Department Conference Room",
-    category: "Camp",
-    description: "Committee review for transport, village committee consultation, and thematic cultural street-play rehearsals.",
+    id: "evt-3",
+    title: "State Seminar on Indigenous Child Protection Frameworks",
+    date: "2026-03-05",
+    time: "09:30 AM - 03:30 PM",
+    venue: "College Auditorium, St. Xavier College",
+    category: "Seminar",
+    description: "Academic discussion on child rights, welfare institutions, and institutional care legalities in Manipur.",
+    organizer: "St. Xavier College Maram Khunou",
+    resourcePerson: "Invited State Legal & Child Welfare Experts",
   },
 ];
 
 export default function EventsPage() {
-  const [events, setEvents] = useState<EventItem[]>(FALLBACK_EVENTS);
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-
-  const categories = ["All", "Fieldwork", "Academic", "Seminar", "Camp"];
+  const [events, setEvents] = useState<EventItem[]>(DEFAULT_EVENTS);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   useEffect(() => {
     try {
-      const q = query(collection(db, "events"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsub = onSnapshot(collection(db, "events"), (snapshot) => {
         if (!snapshot.empty) {
-          const list: EventItem[] = snapshot.docs.map((doc) => ({
+          const loaded = snapshot.docs.map((doc) => ({
             id: doc.id,
-            ...(doc.data() as Omit<EventItem, "id">),
-          }));
-          list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          setEvents(list);
-        } else {
-          setEvents(FALLBACK_EVENTS);
+            ...doc.data(),
+          })) as EventItem[];
+          setEvents(loaded);
         }
       });
-      return () => unsubscribe();
+      return () => unsub();
     } catch (err) {
-      console.warn("Using fallback events:", err);
-      setEvents(FALLBACK_EVENTS);
+      console.warn("Firestore events subscription error:", err);
     }
   }, []);
 
-  const filteredEvents = events.filter((ev) => {
-    const matchesCat = selectedCategory === "All" || ev.category === selectedCategory;
-    const matchesSearch = ev.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          ev.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          ev.venue.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
+  const categories = ["All", "Rural Camp", "Fieldwork", "Seminar", "Examination"];
+
+  const filteredEvents = events.filter((evt) => {
+    const matchesSearch =
+      evt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      evt.venue.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      evt.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "All" ||
+      evt.category?.toLowerCase() === selectedCategory.toLowerCase();
+    return matchesSearch && matchesCategory;
   });
 
-  // Date formatter helpers
-  const formatMonth = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return isNaN(date.getTime()) ? "SEP" : date.toLocaleString("en-US", { month: "short" }).toUpperCase();
-  };
-
-  const formatDay = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return isNaN(date.getTime()) ? "01" : date.getDate().toString().padStart(2, "0");
-  };
-
   return (
-    <div className="min-h-screen bg-slate-950 text-white selection:bg-amber-500 selection:text-slate-950 pb-20">
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24">
       
       {/* Header Banner */}
-      <div className="border-b border-slate-800 bg-slate-900/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-2">
-              <CalendarIcon className="w-3.5 h-3.5" />
-              <span>Department Calendar</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">
-              Events & Schedules
-            </h1>
-            <p className="text-sm sm:text-base text-slate-400 mt-2 leading-relaxed">
-              Stay informed about upcoming practicum orientations, rural camps, guest lectures, and academic conferences.
-            </p>
+      <section className="bg-white border-b border-slate-200 py-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold mb-4">
+            <CalendarIcon className="w-3.5 h-3.5" />
+            <span>Department Schedules & Programs</span>
           </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            Academic Calendar & Events
+          </h1>
+          <p className="text-sm sm:text-base text-slate-600 mt-2 max-w-3xl leading-relaxed">
+            Key dates for rural educational camps, orientation visits, supervisory conferences, seminars, and academic workshops.
+          </p>
         </div>
-      </div>
+      </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+      {/* Main Content */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-6">
         
-        {/* Filter and Search */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Controls */}
+        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search events by title, venue, or details..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 transition"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
+            <span className="text-slate-400 font-semibold mr-1 flex items-center gap-1">
+              <Tag className="w-3.5 h-3.5" /> Category:
+            </span>
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
                   selectedCategory === cat
-                    ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/10"
-                    : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
+                    ? "bg-teal-700 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
                 {cat}
               </button>
             ))}
           </div>
-
-          <div className="relative w-full md:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search schedule or venue..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
-            />
-          </div>
         </div>
 
-        {/* Events List */}
-        <div className="space-y-4">
-          {filteredEvents.map((ev) => (
+        {/* Events Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {filteredEvents.map((evt) => (
             <div
-              key={ev.id}
-              className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 hover:border-amber-500/40 transition duration-300 flex flex-col md:flex-row md:items-center gap-6"
+              key={evt.id}
+              className="p-6 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 hover:shadow-md transition shadow-xs flex flex-col justify-between group space-y-4"
             >
-              {/* Date Block */}
-              <div className="flex md:flex-col items-center justify-center w-full md:w-24 h-16 md:h-24 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0 gap-2 md:gap-0">
-                <span className="text-xs font-extrabold tracking-wider uppercase">
-                  {formatMonth(ev.date)}
-                </span>
-                <span className="text-2xl md:text-3xl font-black text-white">
-                  {formatDay(ev.date)}
-                </span>
-              </div>
-
-              {/* Event Details */}
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider">
-                    {ev.category}
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2.5 py-1 rounded-md border border-teal-200">
+                    {evt.category || "Event"}
                   </span>
+                  <div className="flex items-center gap-1.5 text-xs font-mono text-teal-800 font-bold bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                    <CalendarIcon className="w-3.5 h-3.5 text-teal-700" />
+                    <span>{evt.date}</span>
+                  </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-white">{ev.title}</h3>
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{ev.description}</p>
+                <h3 className="text-base font-bold text-slate-900 group-hover:text-teal-800 transition">
+                  {evt.title}
+                </h3>
 
-                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{ev.time}</span>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{ev.venue}</span>
-                  </span>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {evt.description}
+                </p>
+
+                <div className="space-y-1.5 pt-2 text-xs text-slate-500">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                    <span className="truncate">{evt.venue}</span>
+                  </div>
+                  {evt.time && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                      <span>{evt.time}</span>
+                    </div>
+                  )}
+                  {evt.resourcePerson && (
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                      <span className="truncate">Resource: {evt.resourcePerson}</span>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {evt.organizer && (
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Organized by: <strong className="text-slate-600">{evt.organizer}</strong></span>
+                </div>
+              )}
             </div>
           ))}
-
-          {filteredEvents.length === 0 && (
-            <div className="p-12 text-center rounded-3xl bg-slate-900/30 border border-dashed border-slate-800 text-xs text-slate-400">
-              No events match your current filters.
-            </div>
-          )}
         </div>
+
+        {/* Empty State */}
+        {filteredEvents.length === 0 && (
+          <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
+            <CalendarIcon className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-sm font-bold text-slate-900">No events found</h3>
+            <p className="text-xs text-slate-500 mt-1">Try selecting &quot;All&quot; categories or clearing your search term.</p>
+          </div>
+        )}
 
       </div>
     </div>

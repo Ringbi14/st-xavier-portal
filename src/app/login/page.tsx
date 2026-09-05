@@ -1,194 +1,161 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import React, { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { auth } from "@/lib/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { 
-  LogIn, 
-  UserPlus, 
-  Mail, 
+  ShieldCheck, 
   Lock, 
-  User, 
-  FileBadge, 
-  AlertCircle, 
-  Loader2,
-  CheckCircle2
+  Mail, 
+  ArrowLeft, 
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 
 export default function LoginPage() {
-  const { user, profile, signInWithEmail, registerWithEmail, loading } = useAuth();
-  const router = useRouter();
-
-  const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [rollNumber, setRollNumber] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  useEffect(() => {
-    if (!loading && user) {
-      if (profile?.role === "admin") {
-        router.push("/admin");
-      } else {
-        router.push("/dashboard");
-      }
-    }
-  }, [user, profile, loading, router]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
-    setSubmitting(true);
+    setError("");
+    setLoading(true);
 
     try {
-      if (isRegistering) {
-        if (!name.trim() || !rollNumber.trim()) {
-          throw new Error("Please fill in your full name and student roll number.");
-        }
-        await registerWithEmail(email.trim(), password, name.trim(), rollNumber.trim());
-        setSuccessMsg("Registration submitted! An administrator will approve your access shortly.");
-        setIsRegistering(false);
-      } else {
-        await signInWithEmail(email.trim(), password);
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push("/admin");
     } catch (err: any) {
-      setErrorMsg(err.message || "Authentication failed. Please check your details.");
+      console.error("Login attempt failed:", err);
+      if (
+        err.code === "auth/invalid-credential" || 
+        err.code === "auth/user-not-found" || 
+        err.code === "auth/wrong-password"
+      ) {
+        setError("Invalid email or password. Please verify your administrative credentials.");
+      } else if (err.code === "auth/too-many-requests") {
+        setError("Too many unsuccessful attempts. Please try again later.");
+      } else {
+        setError("An error occurred during authentication. Please try again.");
+      }
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 space-y-6">
-        <div className="text-center space-y-1">
-          <h1 className="text-xl font-bold text-white">
-            {isRegistering ? "Student Portal Registration" : "Department Portal Sign In"}
-          </h1>
-          <p className="text-xs text-slate-400">
-            Department of Social Work | St. Xavier College
-          </p>
+    <div className="min-h-[85vh] bg-slate-50 flex items-center justify-center px-4 py-12">
+      <div className="max-w-md w-full space-y-6">
+        
+        {/* Back Link */}
+        <div>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-teal-800 transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Return to Portal Homepage</span>
+          </Link>
         </div>
 
-        {errorMsg && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errorMsg}</span>
+        {/* Login Card */}
+        <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-xs space-y-6">
+          
+          <div className="text-center space-y-2">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-teal-50 border border-teal-200 p-2 flex items-center justify-center shadow-xs">
+              <Image
+                src="/dept-logo.png"
+                alt="Department Crest"
+                width={40}
+                height={40}
+                className="object-contain"
+                priority
+              />
+            </div>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">
+              Authorized Portal Gate
+            </h1>
+            <p className="text-xs text-slate-500">
+              Department of Social Work — Administrative Access
+            </p>
           </div>
-        )}
 
-        {successMsg && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {isRegistering && (
-            <>
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g., John Doe"
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Roll / Register Number</label>
-                <div className="relative">
-                  <FileBadge className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    required
-                    value={rollNumber}
-                    onChange={(e) => setRollNumber(e.target.value)}
-                    placeholder="e.g., 24SW01"
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-            </>
+          {error && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2 text-xs text-rose-800 animate-in fade-in duration-150">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-              />
+          <form onSubmit={handleLogin} className="space-y-4">
+            
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Institutional Email
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  required
+                  placeholder="admin@stxaviercollegespt.ac.in"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 transition"
+                />
+              </div>
             </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Security Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 transition"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:bg-teal-700/60 text-white text-xs font-bold transition shadow-xs flex items-center justify-center gap-2 mt-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Verifying Credentials...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Authenticate & Enter</span>
+                </>
+              )}
+            </button>
+
+          </form>
+
+          <div className="pt-4 border-t border-slate-100 text-center">
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Restricted to authorized faculty coordinators and portal administrators. All authentication attempts are logged for security.
+            </p>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-md transition disabled:opacity-50"
-          >
-            {submitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : isRegistering ? (
-              <>
-                <UserPlus className="w-4 h-4" />
-                Submit Registration
-              </>
-            ) : (
-              <>
-                <LogIn className="w-4 h-4" />
-                Sign In
-              </>
-            )}
-          </button>
-        </form>
-
-        <div className="text-center pt-2">
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegistering(!isRegistering);
-              setErrorMsg("");
-              setSuccessMsg("");
-            }}
-            className="text-xs text-amber-400 hover:underline"
-          >
-            {isRegistering
-              ? "Already registered? Sign in here"
-              : "New student? Register for access"}
-          </button>
         </div>
+
       </div>
     </div>
   );
