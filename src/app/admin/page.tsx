@@ -2,902 +2,1802 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
-import { 
-  onAuthStateChanged, 
-  signOut, 
-  updateProfile,
-  User 
-} from "firebase/auth";
+import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
 import {
   collection,
   query,
-  where,
-  getDocs,
+  orderBy,
+  onSnapshot,
   doc,
   updateDoc,
   deleteDoc,
   addDoc,
   serverTimestamp,
-  orderBy,
-  onSnapshot
 } from "firebase/firestore";
 import {
-  ShieldCheck,
-  UserCheck,
-  Users,
-  UserCog,
   Bell,
-  Calendar,
+  FileText,
+  Camera,
   Building2,
-  FileDown,
+  GraduationCap,
   LogOut,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Search,
-  Save,
-  AlertCircle,
   Plus,
+  Pencil,
   Trash2,
+  X,
   ExternalLink,
-  ShieldAlert,
-  Loader2
+  Calendar,
+  MapPin,
+  Globe,
+  Phone,
+  Mail,
+  Download,
+  Loader2,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 
-interface UserProfile {
-  id: string;
-  uid: string;
-  name: string;
-  email: string;
-  role: "student" | "admin";
-  status: "pending" | "approved" | "rejected";
-  regNumber?: string;
-  batch?: string;
-  phone?: string;
-  designation?: string;
-  createdAt?: any;
-}
+type AdminTab = "notices" | "resources" | "showcase" | "agencies" | "faculty";
 
-export default function AdminDashboardPage() {
+export default function AdminPage() {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<
-    "approvals" | "roster" | "profile" | "notices" | "events" | "organizations" | "downloads"
-  >("approvals");
-
-  // State: User Data
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [rosterSearch, setRosterSearch] = useState("");
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
-
-  // State: Admin Profile Form
-  const [profileName, setProfileName] = useState("");
-  const [profilePhone, setProfilePhone] = useState("");
-  const [profileDesignation, setProfileDesignation] = useState("Faculty Coordinator");
-  const [profileSaving, setProfileSaving] = useState(false);
-
-  // State: Portal Content
-  const [notices, setNotices] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
-  const [organizations, setOrganizations] = useState<any[]>([]);
-  const [downloads, setDownloads] = useState<any[]>([]);
-
-  // Form states for content management
-  const [newNotice, setNewNotice] = useState({ title: "", category: "General", content: "", isUrgent: false });
-  const [newEvent, setNewEvent] = useState({ title: "", date: "", venue: "", description: "" });
-  const [newOrg, setNewOrg] = useState({ name: "", sector: "", location: "", contactPerson: "", contactPhone: "" });
-  const [newDownload, setNewDownload] = useState({ title: "", category: "Fieldwork", fileUrl: "" });
-
-  // 1. Check Authentication
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        router.push("/login");
-      } else {
-        setCurrentUser(user);
-        setProfileName(user.displayName || "");
-      }
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, [router]);
-
-  // 2. Fetch All Registered Users
-  const fetchUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const q = query(collection(db, "users"));
-      const snapshot = await getDocs(q);
-      const userList: UserProfile[] = [];
-      snapshot.forEach((d) => {
-        userList.push({ id: d.id, ...d.data() } as UserProfile);
-      });
-      setAllUsers(userList);
-    } catch (err) {
-      console.error("Error fetching users:", err);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
+  const { user, isAdmin, loading, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState<AdminTab>("notices");
 
   useEffect(() => {
-    if (currentUser) {
-      fetchUsers();
+    if (!loading && (!user || !isAdmin)) {
+      router.push("/login");
     }
-  }, [currentUser]);
+  }, [user, isAdmin, loading, router]);
 
-  // 3. Live Sync Content Lists
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const unsubNotices = onSnapshot(collection(db, "notices"), (snap) => {
-      setNotices(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    const unsubEvents = onSnapshot(collection(db, "events"), (snap) => {
-      setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    const unsubOrgs = onSnapshot(collection(db, "organizations"), (snap) => {
-      setOrganizations(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-    const unsubDownloads = onSnapshot(collection(db, "downloads"), (snap) => {
-      setDownloads(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-
-    return () => {
-      unsubNotices();
-      unsubEvents();
-      unsubOrgs();
-      unsubDownloads();
-    };
-  }, [currentUser]);
-
-  // Actions: User Management
-  const handleUpdateStatus = async (userId: string, newStatus: "approved" | "rejected") => {
-    try {
-      await updateDoc(doc(db, "users", userId), { status: newStatus });
-      setActionMessage(`Student status successfully updated to ${newStatus}.`);
-      fetchUsers();
-      setTimeout(() => setActionMessage(null), 3500);
-    } catch (err) {
-      console.error("Error updating status:", err);
-    }
-  };
-
-  const handleToggleRole = async (userId: string, currentRole: "student" | "admin") => {
-    const nextRole = currentRole === "admin" ? "student" : "admin";
-    try {
-      await updateDoc(doc(db, "users", userId), { role: nextRole });
-      setActionMessage(`User access privilege updated to ${nextRole.toUpperCase()}.`);
-      fetchUsers();
-      setTimeout(() => setActionMessage(null), 3500);
-    } catch (err) {
-      console.error("Error updating role:", err);
-    }
-  };
-
-  // Actions: Admin Profile
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser) return;
-    setProfileSaving(true);
-    try {
-      await updateProfile(currentUser, { displayName: profileName });
-      
-      // Update profile in Firestore users collection as well
-      const userRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userRef, {
-        name: profileName,
-        phone: profilePhone,
-        designation: profileDesignation,
-      }).catch(async () => {
-        // Fallback if doc doesn't exist under UID
-        const q = query(collection(db, "users"), where("email", "==", currentUser.email));
-        const res = await getDocs(q);
-        if (!res.empty) {
-          await updateDoc(doc(db, "users", res.docs[0].id), {
-            name: profileName,
-            phone: profilePhone,
-            designation: profileDesignation,
-          });
-        }
-      });
-
-      setActionMessage("Administrative profile updated successfully.");
-      setTimeout(() => setActionMessage(null), 3500);
-    } catch (err) {
-      console.error("Error saving profile:", err);
-    } finally {
-      setProfileSaving(false);
-    }
-  };
-
-  // Actions: Content Creators & Removers
-  const handleCreateNotice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNotice.title) return;
-    await addDoc(collection(db, "notices"), {
-      ...newNotice,
-      createdAt: serverTimestamp(),
-    });
-    setNewNotice({ title: "", category: "General", content: "", isUrgent: false });
-  };
-
-  const handleCreateEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEvent.title) return;
-    await addDoc(collection(db, "events"), {
-      ...newEvent,
-      createdAt: serverTimestamp(),
-    });
-    setNewEvent({ title: "", date: "", venue: "", description: "" });
-  };
-
-  const handleCreateOrg = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newOrg.name) return;
-    await addDoc(collection(db, "organizations"), {
-      ...newOrg,
-      createdAt: serverTimestamp(),
-    });
-    setNewOrg({ name: "", sector: "", location: "", contactPerson: "", contactPhone: "" });
-  };
-
-  const handleCreateDownload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDownload.title || !newDownload.fileUrl) return;
-    await addDoc(collection(db, "downloads"), {
-      ...newDownload,
-      createdAt: serverTimestamp(),
-    });
-    setNewDownload({ title: "", category: "Fieldwork", fileUrl: "" });
-  };
-
-  const handleDeleteItem = async (col: string, id: string) => {
-    if (confirm("Are you sure you want to permanently remove this entry?")) {
-      await deleteDoc(doc(db, col, id));
-    }
-  };
-
-  if (authLoading) {
+  if (loading) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="w-8 h-8 text-teal-700 animate-spin" />
-          <p className="text-xs font-semibold text-slate-500">Checking authorization status...</p>
-        </div>
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-teal-700 animate-spin" />
       </div>
     );
   }
 
-  // Filtered lists
-  const pendingStudents = allUsers.filter((u) => u.status === "pending" || (!u.status && u.role === "student"));
-  const approvedStudents = allUsers.filter((u) => u.status === "approved" || u.role === "student");
-  const filteredRoster = approvedStudents.filter(
-    (u) =>
-      u.name?.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-      u.email?.toLowerCase().includes(rosterSearch.toLowerCase()) ||
-      u.regNumber?.toLowerCase().includes(rosterSearch.toLowerCase())
-  );
+  if (!isAdmin) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-
-        {/* Dashboard Top Header */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-black uppercase tracking-wider">
-                Institutional Administration
-              </span>
-              <span className="text-xs text-slate-400">Department of Social Work</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Portal Governance & Control Console
-            </h1>
-            <p className="text-xs text-slate-500">
-              Authenticated Session: <span className="font-semibold text-teal-800">{currentUser?.email}</span>
-            </p>
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+      
+      {/* ========================================================= */}
+      {/* ADMIN HEADER & CONTROL BAR                                */}
+      {/* ========================================================= */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+              Department Content Management System
+            </span>
+            <span className="text-xs text-slate-400">•</span>
+            <span className="text-xs font-semibold text-slate-500">St. Xavier College, Maram Khunou</span>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                signOut(auth);
-                router.push("/login");
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 border border-slate-200 text-xs font-bold text-slate-700 transition"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Terminate Session</span>
-            </button>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">
+            Portal Control & Governance Console
+          </h1>
+          <p className="text-xs text-slate-500 mt-1 font-mono">
+            Authenticated Admin: <span className="font-bold text-teal-900">{user?.email}</span>
+          </p>
         </div>
 
-        {/* Toast / Notification Alert */}
-        {actionMessage && (
-          <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-900 text-xs font-bold flex items-center gap-2 animate-in fade-in duration-200">
-            <CheckCircle2 className="w-4 h-4 text-teal-700 shrink-0" />
-            <span>{actionMessage}</span>
-          </div>
-        )}
-
-        {/* Tab Navigation */}
-        <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <button
-            onClick={() => setActiveTab("approvals")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
-              activeTab === "approvals"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-            }`}
+        <div className="flex items-center gap-2.5 self-start md:self-auto">
+          <Link
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
           >
-            <UserCheck className="w-4 h-4" />
-            <span>Student Approvals</span>
-            {pendingStudents.length > 0 && (
-              <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] bg-rose-500 text-white font-black">
-                {pendingStudents.length}
-              </span>
-            )}
-          </button>
+            <span>Live Site</span>
+            <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+          </Link>
 
           <button
-            onClick={() => setActiveTab("roster")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
-              activeTab === "roster"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-            }`}
+            type="button"
+            onClick={async () => {
+              await logout();
+              router.push("/login");
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition shadow-xs cursor-pointer"
           >
-            <Users className="w-4 h-4" />
-            <span>Student Roster & Roles</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("profile")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
-              activeTab === "profile"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-            }`}
-          >
-            <UserCog className="w-4 h-4" />
-            <span>Admin Profile</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("notices")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
-              activeTab === "notices"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-            }`}
-          >
-            <Bell className="w-4 h-4" />
-            <span>Notices</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("events")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
-              activeTab === "events"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Events</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("organizations")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
-              activeTab === "organizations"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-            }`}
-          >
-            <Building2 className="w-4 h-4" />
-            <span>Agencies</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("downloads")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition ${
-              activeTab === "downloads"
-                ? "bg-teal-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-            }`}
-          >
-            <FileDown className="w-4 h-4" />
-            <span>Downloads</span>
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out</span>
           </button>
         </div>
+      </div>
 
-        {/* TAB 1: STUDENT APPROVALS QUEUE */}
-        {activeTab === "approvals" && (
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-              <div>
-                <h2 className="text-base font-black text-slate-900">
-                  Pending Student Registrations ({pendingStudents.length})
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Review new student registrations before giving access to practicum downloads and fieldwork updates.
-                </p>
-              </div>
+      {/* ========================================================= */}
+      {/* 5-TAB NAVIGATION BAR                                      */}
+      {/* ========================================================= */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs flex items-center gap-1.5 overflow-x-auto">
+        <TabButton
+          active={activeTab === "notices"}
+          onClick={() => setActiveTab("notices")}
+          icon={<Bell className="w-4 h-4" />}
+          label="1. Notices & Circulars"
+        />
+        <TabButton
+          active={activeTab === "resources"}
+          onClick={() => setActiveTab("resources")}
+          icon={<FileText className="w-4 h-4" />}
+          label="2. BSW Resource Desk"
+        />
+        <TabButton
+          active={activeTab === "showcase"}
+          onClick={() => setActiveTab("showcase")}
+          icon={<Camera className="w-4 h-4" />}
+          label="3. Fieldwork & Camp Showcase"
+        />
+        <TabButton
+          active={activeTab === "agencies"}
+          onClick={() => setActiveTab("agencies")}
+          icon={<Building2 className="w-4 h-4" />}
+          label="4. Placement Directory"
+        />
+        <TabButton
+          active={activeTab === "faculty"}
+          onClick={() => setActiveTab("faculty")}
+          icon={<GraduationCap className="w-4 h-4" />}
+          label="5. Faculty & Leadership"
+        />
+      </div>
+
+      {/* ========================================================= */}
+      {/* ACTIVE TAB CONTENT VIEW                                   */}
+      {/* ========================================================= */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
+        {activeTab === "notices" && <NoticesTab />}
+        {activeTab === "resources" && <ResourcesTab />}
+        {activeTab === "showcase" && <ShowcaseTab />}
+        {activeTab === "agencies" && <AgenciesTab />}
+        {activeTab === "faculty" && <FacultyTab />}
+      </div>
+
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+        active
+          ? "bg-teal-700 text-white shadow-xs"
+          : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+// ====================================================================
+// TAB 1: NOTICES & CIRCULARS (Manage /notices)
+// ====================================================================
+function NoticesTab() {
+  const [notices, setNotices] = useState<any[]>([]);
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [category, setCategory] = useState("Fieldwork");
+  const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [body, setBody] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, "notices"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setNotices(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const openCreateModal = () => {
+    setEditingId(null);
+    setTitle("");
+    setDate(new Date().toISOString().split("T")[0]);
+    setCategory("Fieldwork");
+    setAttachmentUrl("");
+    setBody("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (item: any) => {
+    setEditingId(item.id);
+    setTitle(item.title || "");
+    setDate(item.date || new Date().toISOString().split("T")[0]);
+    setCategory(item.category || "General");
+    setAttachmentUrl(item.attachmentUrl || item.fileUrl || "");
+    setBody(item.body || item.description || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !body.trim()) {
+      alert("Please enter both the notice headline and circular body text.");
+      return;
+    }
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        title: title.trim(),
+        date: date || new Date().toISOString().split("T")[0],
+        category,
+        attachmentUrl: attachmentUrl.trim(),
+        fileUrl: attachmentUrl.trim(),
+        description: body.trim(),
+        body: body.trim(),
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, "notices", editingId), {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(collection(db, "notices"), {
+          ...payload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Notice save failed:", err);
+      alert("Failed to save circular. Please verify permissions.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this circular notice?")) return;
+    try {
+      await deleteDoc(doc(db, "notices", id));
+    } catch (err) {
+      console.error("Notice delete failed:", err);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div>
+          <h2 className="text-base font-black text-slate-900">
+            Department Notices & Circulars ({notices.length})
+          </h2>
+          <p className="text-xs text-slate-500">
+            Publish and manage official announcements displayed on /notices and the homepage.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreateModal}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition shadow-xs self-start sm:self-auto cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Post New Notice</span>
+        </button>
+      </div>
+
+      {notices.length === 0 ? (
+        <div className="p-12 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <Bell className="w-8 h-8 text-slate-400 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-900">No circulars posted yet</h3>
+          <p className="text-xs text-slate-500">Click &quot;Post New Notice&quot; to publish your first announcement.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-600 border border-slate-200 rounded-2xl overflow-hidden">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
+              <tr>
+                <th className="py-3 px-4">Headline & Category</th>
+                <th className="py-3 px-4">Date</th>
+                <th className="py-3 px-4">Circular Body Preview</th>
+                <th className="py-3 px-4">Attachment</th>
+                <th className="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {notices.map((n) => (
+                <tr key={n.id} className="hover:bg-slate-50/80 transition">
+                  <td className="py-3 px-4 align-top">
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm">
+                      {n.title}
+                    </div>
+                    <span className="inline-block mt-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border bg-teal-50 text-teal-800 border-teal-200">
+                      {n.category || "General"}
+                    </span>
+                  </td>
+
+                  <td className="py-3 px-4 align-top font-mono text-slate-600 whitespace-nowrap">
+                    {n.date}
+                  </td>
+
+                  <td className="py-3 px-4 align-top max-w-sm">
+                    <p className="line-clamp-2 leading-relaxed text-[11px] text-slate-600">
+                      {n.body || n.description}
+                    </p>
+                  </td>
+
+                  <td className="py-3 px-4 align-top">
+                    {n.attachmentUrl || n.fileUrl ? (
+                      <a
+                        href={n.attachmentUrl || n.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-teal-800 hover:underline font-bold"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>PDF Doc</span>
+                      </a>
+                    ) : (
+                      <span className="text-slate-400 italic">None</span>
+                    )}
+                  </td>
+
+                  <td className="py-3 px-4 align-top text-right whitespace-nowrap">
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(n)}
+                        className="p-1.5 text-teal-800 bg-teal-50 hover:bg-teal-100 rounded-lg transition cursor-pointer"
+                        title="Edit Notice"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(n.id)}
+                        className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition cursor-pointer"
+                        title="Delete Notice"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Notice Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-900">
+                {editingId ? "Edit Circular Notice" : "Post Official Circular Notice"}
+              </h3>
               <button
-                onClick={fetchUsers}
-                className="text-xs font-bold text-teal-800 hover:underline inline-flex items-center gap-1"
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
-                Refresh Queue
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {pendingStudents.length === 0 ? (
-              <div className="text-center py-12 space-y-3">
-                <CheckCircle2 className="w-10 h-10 text-teal-600 mx-auto" />
-                <p className="text-sm font-bold text-slate-700">No pending student approvals</p>
-                <p className="text-xs text-slate-400">All registered student accounts have been processed.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                      <th className="pb-3 px-3">Student Name</th>
-                      <th className="pb-3 px-3">Email Address</th>
-                      <th className="pb-3 px-3">Roll / Reg Number</th>
-                      <th className="pb-3 px-3">Academic Batch</th>
-                      <th className="pb-3 px-3 text-right">Verification Decision</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs">
-                    {pendingStudents.map((stu) => (
-                      <tr key={stu.id} className="hover:bg-slate-50 transition">
-                        <td className="py-4 px-3 font-bold text-slate-900">{stu.name || "Unnamed Student"}</td>
-                        <td className="py-4 px-3 text-slate-600">{stu.email}</td>
-                        <td className="py-4 px-3 font-mono text-slate-600">{stu.regNumber || "Not Provided"}</td>
-                        <td className="py-4 px-3 text-slate-600">{stu.batch || "BSW"}</td>
-                        <td className="py-4 px-3 text-right space-x-2">
-                          <button
-                            onClick={() => handleUpdateStatus(stu.id, "approved")}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-700 hover:text-white text-teal-800 border border-teal-200 font-bold transition"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Approve</span>
-                          </button>
-                          <button
-                            onClick={() => handleUpdateStatus(stu.id, "rejected")}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-700 hover:text-white text-rose-700 border border-rose-200 font-bold transition"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Reject</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB 2: STUDENT ROSTER & ROLE CONTROLS */}
-        {activeTab === "roster" && (
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <form onSubmit={handleSubmit} className="space-y-3.5">
               <div>
-                <h2 className="text-base font-black text-slate-900">
-                  Student Directory & Privilege Roster ({filteredRoster.length})
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Manage active student cohorts and assign elevated administrative capabilities.
-                </p>
-              </div>
-
-              {/* Search Bar */}
-              <div className="relative w-full md:w-72">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search by name, email, or roll..."
-                  value={rosterSearch}
-                  onChange={(e) => setRosterSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 transition"
-                />
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    <th className="pb-3 px-3">Student Name</th>
-                    <th className="pb-3 px-3">Email</th>
-                    <th className="pb-3 px-3">Registration ID</th>
-                    <th className="pb-3 px-3">Access Level</th>
-                    <th className="pb-3 px-3 text-right">Role Controls</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {filteredRoster.map((user) => (
-                    <tr key={user.id} className="hover:bg-slate-50 transition">
-                      <td className="py-4 px-3 font-bold text-slate-900">{user.name || "Student"}</td>
-                      <td className="py-4 px-3 text-slate-600">{user.email}</td>
-                      <td className="py-4 px-3 font-mono text-slate-500">{user.regNumber || "—"}</td>
-                      <td className="py-4 px-3">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                            user.role === "admin"
-                              ? "bg-purple-50 text-purple-800 border border-purple-200"
-                              : "bg-teal-50 text-teal-800 border border-teal-200"
-                          }`}
-                        >
-                          {user.role || "student"}
-                        </span>
-                      </td>
-                      <td className="py-4 px-3 text-right">
-                        <button
-                          onClick={() => handleToggleRole(user.id, user.role)}
-                          className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-[11px] transition"
-                        >
-                          {user.role === "admin" ? "Demote to Student" : "Promote to Admin"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: ADMIN PROFILE SETTINGS */}
-        {activeTab === "profile" && (
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-xs max-w-2xl">
-            <div className="border-b border-slate-100 pb-4">
-              <h2 className="text-base font-black text-slate-900">
-                Administrator Profile & Coordinates
-              </h2>
-              <p className="text-xs text-slate-500">
-                Update your administrative coordinator information and institutional contact credentials.
-              </p>
-            </div>
-
-            <form onSubmit={handleSaveProfile} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">Account Email</label>
-                <input
-                  type="email"
-                  disabled
-                  value={currentUser?.email || ""}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-xs text-slate-500 font-mono"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">Full Display Name</label>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Headline / Notice Title *
+                </label>
                 <input
                   type="text"
                   required
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  placeholder="e.g. Dr. H. L. Vashum"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 outline-none"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Concurrent Fieldwork Placement Orientation Schedule"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700">Designation / Role</label>
-                  <input
-                    type="text"
-                    value={profileDesignation}
-                    onChange={(e) => setProfileDesignation(e.target.value)}
-                    placeholder="Fieldwork Coordinator"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 outline-none"
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Category Tag *
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  >
+                    <option value="Fieldwork">Fieldwork</option>
+                    <option value="Exam">Exam</option>
+                    <option value="Rural Camp">Rural Camp</option>
+                    <option value="General">General</option>
+                  </select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700">Contact Number</label>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Publication Date *
+                  </label>
                   <input
-                    type="tel"
-                    value={profilePhone}
-                    onChange={(e) => setProfilePhone(e.target.value)}
-                    placeholder="+91 98765 43210"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 outline-none"
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
                   />
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Attachment / Circular URL (Optional PDF/Document Link)
+                </label>
+                <input
+                  type="url"
+                  value={attachmentUrl}
+                  onChange={(e) => setAttachmentUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Circular Body Text * (Full announcements with whitespace preservation)
+                </label>
+                <textarea
+                  rows={5}
+                  required
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder="Enter full notice instructions, process, venue, or submission guidelines..."
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  disabled={profileSaving}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-xs transition"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-xs font-bold bg-teal-700 hover:bg-teal-800 text-white rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
                 >
-                  {profileSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  <span>Save Profile Updates</span>
+                  {isSubmitting ? "Saving..." : editingId ? "Save Changes" : "Publish Notice"}
                 </button>
               </div>
             </form>
           </div>
-        )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-        {/* TAB 4: NOTICES MANAGEMENT */}
-        {activeTab === "notices" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
-                Post Circular or Bulletin
-              </h2>
-              <form onSubmit={handleCreateNotice} className="space-y-3">
-                <input
-                  type="text"
-                  required
-                  placeholder="Notice Title"
-                  value={newNotice.title}
-                  onChange={(e) => setNewNotice({ ...newNotice, title: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
-                <select
-                  value={newNotice.category}
-                  onChange={(e) => setNewNotice({ ...newNotice, category: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                >
-                  <option>General</option>
-                  <option>Fieldwork</option>
-                  <option>Examinations</option>
-                  <option>Rural Camp</option>
-                </select>
-                <textarea
-                  rows={4}
-                  placeholder="Notice Details..."
-                  value={newNotice.content}
-                  onChange={(e) => setNewNotice({ ...newNotice, content: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
-                <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newNotice.isUrgent}
-                    onChange={(e) => setNewNotice({ ...newNotice, isUrgent: e.target.checked })}
-                    className="rounded text-teal-700"
-                  />
-                  <span>Mark as Urgent Notice</span>
+// ====================================================================
+// TAB 2: BSW RESOURCE DESK (Manage public downloads /resources)
+// ====================================================================
+function ResourcesTab() {
+  const [downloads, setDownloads] = useState<any[]>([]);
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("Fieldwork Forms");
+  const [url, setUrl] = useState("");
+  const [note, setNote] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, "downloads"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setDownloads(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const openCreateModal = () => {
+    setEditingId(null);
+    setTitle("");
+    setCategory("Fieldwork Forms");
+    setUrl("");
+    setNote("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (item: any) => {
+    setEditingId(item.id);
+    setTitle(item.title || "");
+    setCategory(item.category || "Fieldwork Forms");
+    setUrl(item.url || "");
+    setNote(item.note || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !url.trim()) {
+      alert("Please provide the document title and downloadable file URL.");
+      return;
+    }
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        title: title.trim(),
+        category,
+        targetProgram: "BSW",
+        url: url.trim(),
+        note: note.trim() || undefined,
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, "downloads", editingId), {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(collection(db, "downloads"), {
+          ...payload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Resource save failed:", err);
+      alert("Failed to save resource. Please verify permissions.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this resource document?")) return;
+    try {
+      await deleteDoc(doc(db, "downloads", id));
+    } catch (err) {
+      console.error("Resource delete failed:", err);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div>
+          <h2 className="text-base font-black text-slate-900">
+            BSW Student Resource Desk ({downloads.length})
+          </h2>
+          <p className="text-xs text-slate-500">
+            Manage academic syllabus PDFs, fieldwork process recording forms, and camp guidelines.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreateModal}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition shadow-xs self-start sm:self-auto cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Resource Document</span>
+        </button>
+      </div>
+
+      {downloads.length === 0 ? (
+        <div className="p-12 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <FileText className="w-8 h-8 text-slate-400 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-900">No downloadable files listed yet</h3>
+          <p className="text-xs text-slate-500">Click &quot;Add Resource Document&quot; to upload or link a syllabus or template.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-600 border border-slate-200 rounded-2xl overflow-hidden">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
+              <tr>
+                <th className="py-3 px-4">Document Title & Category</th>
+                <th className="py-3 px-4">Note / Batch</th>
+                <th className="py-3 px-4">Download Link</th>
+                <th className="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {downloads.map((d) => (
+                <tr key={d.id} className="hover:bg-slate-50/80 transition">
+                  <td className="py-3 px-4 align-top">
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm">
+                      {d.title}
+                    </div>
+                    <span className="inline-block mt-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border bg-blue-50 text-blue-800 border-blue-200">
+                      {d.category || "General Guidelines"}
+                    </span>
+                  </td>
+
+                  <td className="py-3 px-4 align-top text-slate-500">
+                    {d.note || "Standard Document"}
+                  </td>
+
+                  <td className="py-3 px-4 align-top">
+                    <a
+                      href={d.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-teal-800 hover:underline font-bold"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Access File</span>
+                      <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                    </a>
+                  </td>
+
+                  <td className="py-3 px-4 align-top text-right whitespace-nowrap">
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(d)}
+                        className="p-1.5 text-teal-800 bg-teal-50 hover:bg-teal-100 rounded-lg transition cursor-pointer"
+                        title="Edit Resource"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(d.id)}
+                        className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition cursor-pointer"
+                        title="Delete Resource"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Resource Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-900">
+                {editingId ? "Edit Resource Document" : "Add Resource Document"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Document Title *
                 </label>
-                <button type="submit" className="w-full py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold">
-                  Publish Notice
-                </button>
-              </form>
-            </div>
-
-            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
-                Published Notices ({notices.length})
-              </h2>
-              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-                {notices.map((n) => (
-                  <div key={n.id} className="p-3.5 rounded-2xl border border-slate-100 hover:border-slate-200 flex items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-900">{n.title}</span>
-                        {n.isUrgent && <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-black">Urgent</span>}
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{n.content}</p>
-                    </div>
-                    <button onClick={() => handleDeleteItem("notices", n.id)} className="p-1.5 text-slate-400 hover:text-rose-600">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. BSW NEP 2020 Course Syllabus (PDF)"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                />
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* TAB 5: EVENTS MANAGEMENT */}
-        {activeTab === "events" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
-                Schedule Department Event
-              </h2>
-              <form onSubmit={handleCreateEvent} className="space-y-3">
-                <input
-                  type="text"
-                  required
-                  placeholder="Event Title"
-                  value={newEvent.title}
-                  onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
-                <input
-                  type="date"
-                  required
-                  value={newEvent.date}
-                  onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
-                <input
-                  type="text"
-                  placeholder="Venue (e.g., Seminar Hall / Maram)"
-                  value={newEvent.venue}
-                  onChange={(e) => setNewEvent({ ...newEvent, venue: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
-                <textarea
-                  rows={3}
-                  placeholder="Brief summary..."
-                  value={newEvent.description}
-                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
-                <button type="submit" className="w-full py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold">
-                  Schedule Event
-                </button>
-              </form>
-            </div>
-
-            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
-                Upcoming Academic Calendar ({events.length})
-              </h2>
-              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-                {events.map((ev) => (
-                  <div key={ev.id} className="p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between gap-4">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">{ev.title}</h4>
-                      <p className="text-[11px] text-slate-500">{ev.date} — {ev.venue}</p>
-                    </div>
-                    <button onClick={() => handleDeleteItem("events", ev.id)} className="p-1.5 text-slate-400 hover:text-rose-600">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 6: ORGANIZATIONS DIRECTORY */}
-        {activeTab === "organizations" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
-                Add Fieldwork Partner Agency
-              </h2>
-              <form onSubmit={handleCreateOrg} className="space-y-3">
-                <input
-                  type="text"
-                  required
-                  placeholder="Organization / NGO Name"
-                  value={newOrg.name}
-                  onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
-                <input
-                  type="text"
-                  placeholder="Sector (e.g. Child Rights, Health)"
-                  value={newOrg.sector}
-                  onChange={(e) => setNewOrg({ ...newOrg, sector: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
-                <input
-                  type="text"
-                  placeholder="Location / District"
-                  value={newOrg.location}
-                  onChange={(e) => setNewOrg({ ...newOrg, location: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
-                <input
-                  type="text"
-                  placeholder="Contact Person"
-                  value={newOrg.contactPerson}
-                  onChange={(e) => setNewOrg({ ...newOrg, contactPerson: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
-                <button type="submit" className="w-full py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold">
-                  Register Agency
-                </button>
-              </form>
-            </div>
-
-            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
-                Partner Agencies Directory ({organizations.length})
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2">
-                {organizations.map((org) => (
-                  <div key={org.id} className="p-3.5 rounded-2xl border border-slate-100 flex items-start justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">{org.name}</h4>
-                      <p className="text-[11px] text-teal-800 font-semibold">{org.sector}</p>
-                      <p className="text-[11px] text-slate-400 mt-1">{org.location}</p>
-                    </div>
-                    <button onClick={() => handleDeleteItem("organizations", org.id)} className="p-1 text-slate-400 hover:text-rose-600">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 7: PRACTICUM DOWNLOADS */}
-        {activeTab === "downloads" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
-                Add Resource Download
-              </h2>
-              <form onSubmit={handleCreateDownload} className="space-y-3">
-                <input
-                  type="text"
-                  required
-                  placeholder="Document Name / Title"
-                  value={newDownload.title}
-                  onChange={(e) => setNewDownload({ ...newDownload, title: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
-                />
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Category Tag *
+                </label>
                 <select
-                  value={newDownload.category}
-                  onChange={(e) => setNewDownload({ ...newDownload, category: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
                 >
-                  <option>Fieldwork</option>
-                  <option>Syllabus</option>
-                  <option>Guidelines</option>
-                  <option>Reports</option>
+                  <option value="Syllabus">Syllabus</option>
+                  <option value="Fieldwork Forms">Fieldwork Forms</option>
+                  <option value="Camp Manuals">Camp Manuals</option>
+                  <option value="General Guidelines">General Guidelines</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  File Link / Cloud Storage URL * (Direct PDF download link)
+                </label>
                 <input
                   type="url"
                   required
-                  placeholder="File Link (Google Drive / Firebase URL)"
-                  value={newDownload.fileUrl}
-                  onChange={(e) => setNewDownload({ ...newDownload, fileUrl: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
                 />
-                <button type="submit" className="w-full py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold">
-                  Publish Download
-                </button>
-              </form>
-            </div>
+              </div>
 
-            <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-              <h2 className="text-sm font-black text-slate-900 border-b border-slate-100 pb-3">
-                Published Resources ({downloads.length})
-              </h2>
-              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-                {downloads.map((d) => (
-                  <div key={d.id} className="p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">{d.title}</h4>
-                      <p className="text-[11px] text-teal-800 font-semibold">{d.category}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <a href={d.fileUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 text-teal-700 hover:underline text-xs flex items-center gap-1">
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                      <button onClick={() => handleDeleteItem("downloads", d.id)} className="p-1.5 text-slate-400 hover:text-rose-600">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Brief Note (Optional e.g. &quot;Updated for 2026-2027 batch&quot;)
+                </label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="e.g. Approved by Manipur University Academic Council"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-xs font-bold bg-teal-700 hover:bg-teal-800 text-white rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting ? "Saving..." : editingId ? "Save Changes" : "Save Document"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================================================================
+// TAB 3: FIELDWORK & CAMP SHOWCASE (Manage /gallery)
+// ====================================================================
+function ShowcaseTab() {
+  const [items, setItems] = useState<any[]>([]);
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("Rural Camp");
+  const [academicYear, setAcademicYear] = useState("2025-2026");
+  const [location, setLocation] = useState("");
+  const [summary, setSummary] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, "gallery"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const openCreateModal = () => {
+    setEditingId(null);
+    setTitle("");
+    setCategory("Rural Camp");
+    setAcademicYear("2025-2026");
+    setLocation("");
+    setSummary("");
+    setImageUrl("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (item: any) => {
+    setEditingId(item.id);
+    setTitle(item.title || "");
+    setCategory(item.category || "Rural Camp");
+    setAcademicYear(item.academicYear || item.year || "2025-2026");
+    setLocation(item.location || "");
+    setSummary(item.impactSummary || item.description || "");
+    setImageUrl(item.imageUrl || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !imageUrl.trim() || !summary.trim()) {
+      alert("Please provide the initiative title, summary, and cover image URL.");
+      return;
+    }
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        title: title.trim(),
+        category,
+        academicYear: academicYear.trim(),
+        year: academicYear.trim(),
+        location: location.trim() || "Senapati District, Manipur",
+        impactSummary: summary.trim(),
+        description: summary.trim(),
+        imageUrl: imageUrl.trim(),
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, "gallery", editingId), {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(collection(db, "gallery"), {
+          ...payload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Showcase save failed:", err);
+      alert("Failed to save showcase highlight. Please check console.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this showcase entry?")) return;
+    try {
+      await deleteDoc(doc(db, "gallery", id));
+    } catch (err) {
+      console.error("Showcase delete failed:", err);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div>
+          <h2 className="text-base font-black text-slate-900">
+            Fieldwork & Camp Showcase Highlights ({items.length})
+          </h2>
+          <p className="text-xs text-slate-500">
+            Showcase rural camps, PRA surveys, and agency immersion photos on /gallery and the homepage.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreateModal}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition shadow-xs self-start sm:self-auto cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Showcase Highlight</span>
+        </button>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="p-12 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <Camera className="w-8 h-8 text-slate-400 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-900">No showcase entries added yet</h3>
+          <p className="text-xs text-slate-500">Click &quot;Add Showcase Highlight&quot; to publish rural camp albums and community outreach photos.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 hover:shadow-xs transition flex flex-col justify-between space-y-3"
+            >
+              <div className="space-y-2.5">
+                <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.imageUrl}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <span className="absolute top-2 left-2 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-black/70 text-white">
+                    {item.category}
+                  </span>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 line-clamp-2">
+                    {item.title}
+                  </h4>
+                  <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1">
+                    <MapPin className="w-3 h-3 text-teal-700 shrink-0" />
+                    <span>{item.location || "Senapati District"}</span>
+                    <span>•</span>
+                    <span className="font-mono">{item.academicYear || item.year}</span>
                   </div>
-                ))}
+                </div>
+
+                <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                  {item.impactSummary || item.description}
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => openEditModal(item)}
+                  className="p-1.5 text-teal-800 bg-teal-50 hover:bg-teal-100 rounded-lg transition cursor-pointer"
+                  title="Edit Entry"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(item.id)}
+                  className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition cursor-pointer"
+                  title="Delete Entry"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
+      )}
 
+      {/* Showcase Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-900">
+                {editingId ? "Edit Showcase Highlight" : "Add Fieldwork / Camp Highlight"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Initiative Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Annual Rural Educational Camp: PRA Assessment"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Category Tag *
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  >
+                    <option value="Rural Camp">Rural Camp</option>
+                    <option value="Community Awareness">Community Awareness</option>
+                    <option value="Agency Visit">Agency Visit</option>
+                    <option value="Department Event">Department Event</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Academic Year *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={academicYear}
+                    onChange={(e) => setAcademicYear(e.target.value)}
+                    placeholder="e.g. 2025-2026"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Target Village / Location
+                </label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Maram Khunou / Senapati District"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Cover Photo / Image URL *
+                </label>
+                <input
+                  type="url"
+                  required
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Summary / Fieldwork Scope *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  placeholder="Brief description of community activities, assessments, or outcomes..."
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-xs font-bold bg-teal-700 hover:bg-teal-800 text-white rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting ? "Saving..." : editingId ? "Save Changes" : "Save Showcase"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================================================================
+// TAB 4: PLACEMENT AGENCY DIRECTORY (Manage /agencies)
+// ====================================================================
+function AgenciesTab() {
+  const [agencies, setAgencies] = useState<any[]>([]);
+  const [name, setName] = useState("");
+  const [domain, setDomain] = useState("Community Development");
+  const [location, setLocation] = useState("");
+  const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState("");
+  const [description, setDescription] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, "agencies"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setAgencies(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const openCreateModal = () => {
+    setEditingId(null);
+    setName("");
+    setDomain("Community Development");
+    setLocation("");
+    setPhone("");
+    setWebsite("");
+    setDescription("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (item: any) => {
+    setEditingId(item.id);
+    setName(item.name || "");
+    setDomain(item.domain || item.sector || "Community Development");
+    setLocation(item.location || "");
+    setPhone(item.phone || "");
+    setWebsite(item.website || "");
+    setDescription(item.description || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !location.trim() || !description.trim()) {
+      alert("Please provide the organization name, location, and a short description.");
+      return;
+    }
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        name: name.trim(),
+        domain,
+        sector: domain,
+        location: location.trim(),
+        description: description.trim(),
+        phone: phone.trim() || undefined,
+        website: website.trim() || undefined,
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, "agencies", editingId), {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(collection(db, "agencies"), {
+          ...payload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Agency save failed:", err);
+      alert("Failed to save agency profile.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this placement partner organization?")) return;
+    try {
+      await deleteDoc(doc(db, "agencies", id));
+    } catch (err) {
+      console.error("Agency delete failed:", err);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div>
+          <h2 className="text-base font-black text-slate-900">
+            Placement Agency Directory ({agencies.length})
+          </h2>
+          <p className="text-xs text-slate-500">
+            Manage partner NGOs, hospital units, and community centers where junior students explore placements.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreateModal}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition shadow-xs self-start sm:self-auto cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Organization</span>
+        </button>
       </div>
+
+      {agencies.length === 0 ? (
+        <div className="p-12 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <Building2 className="w-8 h-8 text-slate-400 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-900">No partner organizations added yet</h3>
+          <p className="text-xs text-slate-500">Click &quot;Add Organization&quot; to register fieldwork placement partners.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-600 border border-slate-200 rounded-2xl overflow-hidden">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
+              <tr>
+                <th className="py-3 px-4">Organization & Domain</th>
+                <th className="py-3 px-4">Location / District</th>
+                <th className="py-3 px-4">Contact Info</th>
+                <th className="py-3 px-4">Description</th>
+                <th className="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {agencies.map((a) => (
+                <tr key={a.id} className="hover:bg-slate-50/80 transition">
+                  <td className="py-3 px-4 align-top">
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm">
+                      {a.name}
+                    </div>
+                    <span className="inline-block mt-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border bg-teal-50 text-teal-800 border-teal-200">
+                      {a.domain}
+                    </span>
+                  </td>
+
+                  <td className="py-3 px-4 align-top font-medium text-slate-700">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                      <span>{a.location}</span>
+                    </div>
+                  </td>
+
+                  <td className="py-3 px-4 align-top space-y-1">
+                    {a.phone && (
+                      <div className="flex items-center gap-1 font-mono text-slate-700">
+                        <Phone className="w-3 h-3 text-teal-700 shrink-0" />
+                        <span>{a.phone}</span>
+                      </div>
+                    )}
+                    {a.website && (
+                      <a
+                        href={a.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-teal-800 hover:underline font-semibold"
+                      >
+                        <Globe className="w-3 h-3" />
+                        <span>Website</span>
+                      </a>
+                    )}
+                    {!a.phone && !a.website && (
+                      <span className="text-[11px] text-slate-400 italic">None provided</span>
+                    )}
+                  </td>
+
+                  <td className="py-3 px-4 align-top max-w-xs">
+                    <p className="line-clamp-2 leading-relaxed text-[11px] text-slate-600">
+                      {a.description}
+                    </p>
+                  </td>
+
+                  <td className="py-3 px-4 align-top text-right whitespace-nowrap">
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(a)}
+                        className="p-1.5 text-teal-800 bg-teal-50 hover:bg-teal-100 rounded-lg transition cursor-pointer"
+                        title="Edit Organization"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(a.id)}
+                        className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition cursor-pointer"
+                        title="Delete Organization"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Agency Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-900">
+                {editingId ? "Edit Organization" : "Add Placement Partner"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Organization Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. District Child Protection Unit, Senapati"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Practice Domain *
+                  </label>
+                  <select
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  >
+                    <option value="Community Development">Community Development</option>
+                    <option value="Child & Youth Welfare">Child & Youth Welfare</option>
+                    <option value="Healthcare & Mental Health">Healthcare & Mental Health</option>
+                    <option value="Women & Family">Women & Family</option>
+                    <option value="Environment & Livelihood">Environment & Livelihood</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Location / District *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. Senapati / Kangpokpi / Imphal"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Contact Number (Optional)
+                  </label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="e.g. +91 3871 222145"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Website URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Short Description * (Tasks done by social work students)
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Explain the scope of student fieldwork, casework, and community projects..."
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-xs font-bold bg-teal-700 hover:bg-teal-800 text-white rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting ? "Saving..." : editingId ? "Save Changes" : "Add Organization"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================================================================
+// TAB 5: FACULTY & COLLEGE LEADERSHIP (Manage /faculty)
+// ====================================================================
+function FacultyTab() {
+  const [faculty, setFaculty] = useState<any[]>([]);
+  const [categoryTier, setCategoryTier] = useState<"Department Faculty" | "College Leadership">("Department Faculty");
+  const [name, setName] = useState("");
+  const [designation, setDesignation] = useState("");
+  const [specialization, setSpecialization] = useState("");
+  const [email, setEmail] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [qualification, setQualification] = useState("");
+  const [supervisoryRole, setSupervisoryRole] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, "faculty"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setFaculty(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const openCreateModal = () => {
+    setEditingId(null);
+    setCategoryTier("Department Faculty");
+    setName("");
+    setDesignation("");
+    setSpecialization("");
+    setEmail("");
+    setImageUrl("");
+    setQualification("");
+    setSupervisoryRole("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (item: any) => {
+    setEditingId(item.id);
+    setCategoryTier(item.categoryTier || "Department Faculty");
+    setName(item.name || "");
+    setDesignation(item.designation || "");
+    setSpecialization(item.specialization || "");
+    setEmail(item.email || "");
+    setImageUrl(item.imageUrl || "");
+    setQualification(item.qualification || "");
+    setSupervisoryRole(item.supervisoryRole || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !designation.trim()) {
+      alert("Please provide the full name and designation.");
+      return;
+    }
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        name: name.trim(),
+        categoryTier,
+        designation: designation.trim(),
+        specialization: specialization.trim() || "Social Work",
+        email: email.trim().toLowerCase(),
+        imageUrl: imageUrl.trim() || undefined,
+        qualification: qualification.trim() || undefined,
+        supervisoryRole: supervisoryRole.trim() || undefined,
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, "faculty", editingId), {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(collection(db, "faculty"), {
+          ...payload,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Faculty save failed:", err);
+      alert("Failed to save faculty profile.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this profile?")) return;
+    try {
+      await deleteDoc(doc(db, "faculty", id));
+    } catch (err) {
+      console.error("Faculty delete failed:", err);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div>
+          <h2 className="text-base font-black text-slate-900">
+            Faculty & College Leadership Directory ({faculty.length})
+          </h2>
+          <p className="text-xs text-slate-500">
+            Manage academic mentors, fieldwork supervisors, and college patrons on /faculty.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreateModal}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition shadow-xs self-start sm:self-auto cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Faculty / Patron</span>
+        </button>
+      </div>
+
+      {faculty.length === 0 ? (
+        <div className="p-12 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <GraduationCap className="w-8 h-8 text-slate-400 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-900">No profiles listed yet</h3>
+          <p className="text-xs text-slate-500">Click &quot;Add Faculty / Patron&quot; to register departmental staff and leadership.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-600 border border-slate-200 rounded-2xl overflow-hidden">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
+              <tr>
+                <th className="py-3 px-4">Name & Designation</th>
+                <th className="py-3 px-4">Tier</th>
+                <th className="py-3 px-4">Specialization / Role</th>
+                <th className="py-3 px-4">Email</th>
+                <th className="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {faculty.map((f) => (
+                <tr key={f.id} className="hover:bg-slate-50/80 transition">
+                  <td className="py-3 px-4 align-top">
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm">
+                      {f.name}
+                    </div>
+                    <div className="text-[11px] font-semibold text-teal-800 mt-0.5">
+                      {f.designation}
+                    </div>
+                    {f.qualification && (
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        {f.qualification}
+                      </div>
+                    )}
+                  </td>
+
+                  <td className="py-3 px-4 align-top">
+                    <span className={`inline-block text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border ${
+                      f.categoryTier === "College Leadership"
+                        ? "bg-purple-50 text-purple-800 border-purple-200"
+                        : "bg-teal-50 text-teal-800 border-teal-200"
+                    }`}>
+                      {f.categoryTier || "Department Faculty"}
+                    </span>
+                  </td>
+
+                  <td className="py-3 px-4 align-top">
+                    <div className="font-medium text-slate-800">{f.specialization}</div>
+                    {f.supervisoryRole && (
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        {f.supervisoryRole}
+                      </div>
+                    )}
+                  </td>
+
+                  <td className="py-3 px-4 align-top">
+                    {f.email ? (
+                      <a href={`mailto:${f.email}`} className="text-teal-800 hover:underline font-mono">
+                        {f.email}
+                      </a>
+                    ) : (
+                      <span className="text-slate-400 italic">None</span>
+                    )}
+                  </td>
+
+                  <td className="py-3 px-4 align-top text-right whitespace-nowrap">
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(f)}
+                        className="p-1.5 text-teal-800 bg-teal-50 hover:bg-teal-100 rounded-lg transition cursor-pointer"
+                        title="Edit Profile"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(f.id)}
+                        className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition cursor-pointer"
+                        title="Delete Profile"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Faculty Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs">
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-200 p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-900">
+                {editingId ? "Edit Profile" : "Add Faculty / College Patron"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Category Tier *
+                  </label>
+                  <select
+                    value={categoryTier}
+                    onChange={(e) => setCategoryTier(e.target.value as any)}
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  >
+                    <option value="Department Faculty">Department Faculty</option>
+                    <option value="College Leadership">College Leadership</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Dr. Rosemary V. / Rev. Dr. Joseph M."
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Designation *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={designation}
+                    onChange={(e) => setDesignation(e.target.value)}
+                    placeholder="e.g. Assistant Professor & HOD / Principal"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Highest Qualifications
+                  </label>
+                  <input
+                    type="text"
+                    value={qualification}
+                    onChange={(e) => setQualification(e.target.value)}
+                    placeholder="e.g. MSW, Ph.D. / M.Phil."
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Academic Specialization / Administrative Role *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  placeholder="e.g. Community Development / Medical & Psychiatric / Institutional Head"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Official Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="e.g. faculty@stxaviercollegespt.ac.in"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Photo URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  />
+                </div>
+              </div>
+
+              {categoryTier === "Department Faculty" && (
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Fieldwork Supervisory Role
+                  </label>
+                  <input
+                    type="text"
+                    value={supervisoryRole}
+                    onChange={(e) => setSupervisoryRole(e.target.value)}
+                    placeholder="e.g. Concurrent Fieldwork Supervisor (Hospital Placements)"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-xs font-bold bg-teal-700 hover:bg-teal-800 text-white rounded-xl transition shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmitting ? "Saving..." : editingId ? "Save Changes" : "Add Profile"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

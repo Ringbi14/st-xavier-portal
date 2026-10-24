@@ -1,223 +1,336 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot } from "firebase/firestore";
-import { 
-  Bell, 
-  Calendar, 
-  Search, 
-  FileText, 
-  Download, 
-  Tag, 
-  AlertCircle,
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import {
+  Bell,
+  Calendar,
+  Search,
+  Tag,
   ChevronRight,
-  ExternalLink
+  ArrowLeft,
+  Building2,
+  FileText,
+  Filter,
 } from "lucide-react";
+import NoticeModal, {
+  NoticeItem,
+  formatNoticeDate,
+  getNoticeCategoryBadge,
+} from "@/components/notices/NoticeModal";
 
-interface Notice {
-  id: string;
-  title: string;
-  date: string;
-  category?: string;
-  description: string;
-  content?: string;
-  attachmentUrl?: string;
-  isImportant?: boolean;
-}
-
-const DEFAULT_NOTICES: Notice[] = [
+const DEFAULT_NOTICES: NoticeItem[] = [
   {
-    id: "not-1",
-    title: "Submission of Concurrent Fieldwork Process Recordings",
-    date: "2026-03-02",
+    id: "not-fb-1",
+    title: "Concurrent Fieldwork Orientation for Semester III & V Practicum",
     category: "Fieldwork",
-    description: "All BSW students must submit their weekly casework and group work process recordings to assigned faculty supervisors by Friday.",
-    isImportant: true,
+    date: "2026-10-18",
+    description:
+      "All students enrolled in BSW Semesters III & V must attend the mandatory concurrent fieldwork orientation scheduled for Friday in the Department Seminar Hall at 10:30 AM.\n\nPlacement rosters, faculty supervisor allocations, and weekly conference schedules will be distributed. Process record templates and field attendance log sheets must be collected from the department office.",
   },
   {
-    id: "not-2",
-    title: "Rural Educational Camp Schedule & Orientation",
-    date: "2026-02-20",
-    category: "Important",
-    description: "Detailed orientation briefing regarding the upcoming 7-day rural educational immersion camp in Senapati district.",
-    isImportant: true,
+    id: "not-fb-2",
+    title: "Annual Rural Educational Camp 2026: Participatory Rural Appraisal Schedule",
+    category: "Rural Camp",
+    date: "2026-10-12",
+    description:
+      "The Department of Social Work announces the 10-day Annual Rural Educational Camp to be conducted in selected tribal villages of Senapati District, Manipur.\n\nPreparatory workshops on PRA mapping, focus group methodology, and community cultural awareness rallies commence next Monday. Camp fees and medical consent forms must be submitted to the camp coordinator.",
   },
   {
-    id: "not-3",
-    title: "Internal Assessment Routine — Department of Social Work",
-    date: "2026-02-15",
-    category: "Examination",
-    description: "The timetable for mid-semester internal assessments covering Social Casework and Social Group Work methodologies.",
+    id: "not-fb-3",
+    title: "End-Semester Practicum Journal Viva Voce & Submission Deadlines",
+    category: "Exam",
+    date: "2026-10-05",
+    description:
+      "All BSW students are notified that fieldwork journals, casework process records, and agency supervisor evaluation sheets must be bound and submitted by 4:00 PM on the designated date.\n\nExternal viva-voce examinations will be conducted in the presence of university-appointed examiners. Late submissions will result in credit deductions.",
   },
   {
-    id: "not-4",
-    title: "Guest Lecture on Tribal Rights and Grassroots Social Action",
-    date: "2026-02-10",
+    id: "not-fb-4",
+    title: "Guest Lecture on Regional Civil Society Action and Tribal Rights",
     category: "General",
-    description: "Special academic lecture session by regional civil society practitioners in the department seminar hall.",
+    date: "2026-09-28",
+    description:
+      "The Department of Social Work cordially invites all students and faculty to a special guest lecture session on 'Grassroots Human Rights Advocacy in the Hill Areas of Manipur' delivered by visiting civil society practitioners in the College Auditorium.",
   },
 ];
 
+const CATEGORIES = ["All", "Fieldwork", "Exam", "Rural Camp", "General"] as const;
+
 export default function NoticesPage() {
-  const [notices, setNotices] = useState<Notice[]>(DEFAULT_NOTICES);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [notices, setNotices] = useState<NoticeItem[]>(DEFAULT_NOTICES);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [activeNotice, setActiveNotice] = useState<NoticeItem | null>(null);
 
   useEffect(() => {
-    try {
-      const unsub = onSnapshot(collection(db, "notices"), (snapshot) => {
-        if (!snapshot.empty) {
-          const loaded = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as Notice[];
-          setNotices(loaded);
+    let isMounted = true;
+
+    async function fetchNotices() {
+      try {
+        setLoading(true);
+        const colRef = collection(db, "notices");
+        let docsData: NoticeItem[] = [];
+
+        // Safe query attempt: Try ordered query by date descending
+        try {
+          const q = query(colRef, orderBy("date", "desc"), limit(40));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            docsData = snap.docs.map((doc) => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                title: data.title || "Untitled Notice",
+                category: data.category || "General",
+                date: data.date || "",
+                description: data.description || data.shortDesc || "",
+                body: data.body || data.description || "",
+                attachmentUrl: data.attachmentUrl || data.fileUrl || "",
+              };
+            });
+          }
+        } catch (queryErr) {
+          console.warn("Ordered query fell back to base query:", queryErr);
+          // Fallback to base collection getDocs
+          const fallbackSnap = await getDocs(query(colRef, limit(40)));
+          if (!fallbackSnap.empty) {
+            docsData = fallbackSnap.docs.map((doc) => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                title: data.title || "Untitled Notice",
+                category: data.category || "General",
+                date: data.date || "",
+                description: data.description || data.shortDesc || "",
+                body: data.body || data.description || "",
+                attachmentUrl: data.attachmentUrl || data.fileUrl || "",
+              };
+            });
+          }
         }
-      });
-      return () => unsub();
-    } catch (err) {
-      console.warn("Firestore notices subscription error:", err);
+
+        if (docsData.length > 0) {
+          // Strictly sort in memory descending by date
+          docsData.sort((a, b) => {
+            const timeA = a.date ? new Date(a.date).getTime() : 0;
+            const timeB = b.date ? new Date(b.date).getTime() : 0;
+            return timeB - timeA;
+          });
+
+          if (isMounted) {
+            setNotices(docsData);
+          }
+        }
+      } catch (err) {
+        console.warn("Using fallback notices due to fetch error:", err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     }
+
+    fetchNotices();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const categories = ["All", "Fieldwork", "Important", "Examination", "General"];
-
   const filteredNotices = notices.filter((notice) => {
-    const matchesSearch =
-      notice.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      notice.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory =
       selectedCategory === "All" ||
-      notice.category?.toLowerCase() === selectedCategory.toLowerCase() ||
-      (selectedCategory === "Important" && notice.isImportant);
-    return matchesSearch && matchesCategory;
+      notice.category?.toLowerCase() === selectedCategory.toLowerCase();
+
+    const matchesSearch =
+      searchTerm === "" ||
+      notice.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      notice.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      notice.body?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return matchesCategory && matchesSearch;
   });
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-24">
-      
       {/* Header Banner */}
-      <section className="bg-white border-b border-slate-200 py-12">
+      <section className="bg-white border-b border-slate-200 pt-8 pb-12">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold mb-4">
-            <Bell className="w-3.5 h-3.5" />
-            <span>Academic Bulletins & Notifications</span>
+          
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-teal-800 transition mb-6"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Portal Home</span>
+          </Link>
+
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold uppercase tracking-wider mb-4 shadow-xs">
+            <Bell className="w-3.5 h-3.5 text-teal-700" />
+            <span>Department Bulletins & Circulars</span>
           </div>
+
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            Department Circulars & Notices
+            Official Notices & Announcements
           </h1>
+
           <p className="text-sm sm:text-base text-slate-600 mt-2 max-w-3xl leading-relaxed">
-            Official announcements, examination schedules, fieldwork guidelines, and urgent departmental notifications for students and faculty.
+            Stay updated with practicum schedules, examination timelines, rural camp instructions, and administrative circulars issued by the Department of Social Work.
           </p>
         </div>
       </section>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-6">
         
-        {/* Controls */}
+        {/* Controls: Category Filter Tabs & Keyword Search */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
-          <div className="relative">
+          
+          {/* Category Filter Tabs */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 flex items-center gap-1">
+                <Filter className="w-3 h-3" /> Category:
+              </span>
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    selectedCategory === cat
+                      ? "bg-teal-700 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="text-[11px] text-slate-400 font-mono">
+              Showing {filteredNotices.length} {filteredNotices.length === 1 ? "notice" : "notices"}
+            </div>
+          </div>
+
+          {/* Search Box */}
+          <div className="relative pt-2 border-t border-slate-100">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search circulars by keyword..."
+              placeholder="Search circular headline, keywords or dates..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 transition"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700 transition"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
-            <span className="text-slate-400 font-semibold mr-1 flex items-center gap-1">
-              <Tag className="w-3.5 h-3.5" /> Category:
-            </span>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                  selectedCategory === cat
-                    ? "bg-teal-700 text-white shadow-xs"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
+        </div>
+
+        {/* Loading Skeleton */}
+        {loading && (
+          <div className="space-y-3">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs animate-pulse space-y-3"
               >
-                {cat}
-              </button>
+                <div className="flex justify-between items-center">
+                  <div className="h-5 w-24 bg-slate-200 rounded-md"></div>
+                  <div className="h-4 w-28 bg-slate-200 rounded-md"></div>
+                </div>
+                <div className="h-6 w-3/4 bg-slate-200 rounded-md"></div>
+                <div className="h-4 w-1/4 bg-slate-100 rounded-md"></div>
+              </div>
             ))}
           </div>
-        </div>
+        )}
 
-        {/* Notices List */}
-        <div className="space-y-4">
-          {filteredNotices.map((notice) => (
-            <div
-              key={notice.id}
-              className={`p-6 rounded-2xl bg-white border transition shadow-xs space-y-3 ${
-                notice.isImportant
-                  ? "border-amber-300 ring-1 ring-amber-200/60"
-                  : "border-slate-200 hover:border-teal-300"
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  {notice.isImportant && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
-                      <AlertCircle className="w-3 h-3" />
-                      <span>Urgent</span>
+        {/* Headline-First Notice Cards List */}
+        {!loading && (
+          <div className="space-y-3">
+            {filteredNotices.map((notice) => (
+              <div
+                key={notice.id}
+                onClick={() => setActiveNotice(notice)}
+                className="group p-5 sm:p-6 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 hover:shadow-md transition cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
+              >
+                <div className="space-y-2 flex-1">
+                  
+                  {/* Category Pill Badge & Date */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span
+                      className={`inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded border ${getNoticeCategoryBadge(
+                        notice.category
+                      )}`}
+                    >
+                      {notice.category}
                     </span>
+
+                    <div className="flex items-center gap-1 text-xs text-slate-400 font-mono">
+                      <Calendar className="w-3.5 h-3.5 text-teal-700" />
+                      <span>{formatNoticeDate(notice.date)}</span>
+                    </div>
+                  </div>
+
+                  {/* Bold Headline */}
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-teal-800 transition leading-snug">
+                    {notice.title}
+                  </h3>
+
+                  {/* Optional short preview if needed */}
+                  {notice.description && (
+                    <p className="text-xs text-slate-500 line-clamp-1">
+                      {notice.description}
+                    </p>
                   )}
-                  <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200 uppercase tracking-wider">
-                    {notice.category || "Notice"}
-                  </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>{notice.date}</span>
+
+                {/* Subtle Read Indicator */}
+                <div className="flex items-center gap-1.5 text-xs font-bold text-teal-700 group-hover:text-teal-900 group-hover:translate-x-0.5 transition-all shrink-0 self-end sm:self-center">
+                  <span>Read Circular</span>
+                  <ChevronRight className="w-4 h-4" />
                 </div>
               </div>
-
-              <div>
-                <h3 className="text-base font-bold text-slate-900">{notice.title}</h3>
-                <p className="text-xs sm:text-sm text-slate-600 mt-1 leading-relaxed">
-                  {notice.description}
-                </p>
-                {notice.content && (
-                  <p className="text-xs text-slate-500 mt-2 p-3 rounded-xl bg-slate-50 border border-slate-100 whitespace-pre-line leading-relaxed">
-                    {notice.content}
-                  </p>
-                )}
-              </div>
-
-              {notice.attachmentUrl && (
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <a
-                    href={notice.attachmentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
-                  >
-                    <Download className="w-3.5 h-3.5 text-teal-700" />
-                    <span>Download Attachment</span>
-                    <ExternalLink className="w-3 h-3 opacity-60" />
-                  </a>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
-        {filteredNotices.length === 0 && (
-          <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
-            <Bell className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-sm font-bold text-slate-900">No notices found</h3>
-            <p className="text-xs text-slate-500 mt-1">Try switching categories or clearing your search term.</p>
+        {!loading && filteredNotices.length === 0 && (
+          <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 mx-auto mb-3">
+              <Bell className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">
+              No circulars currently posted under this category
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              There are no announcements matching your selected category or search keyword.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCategory("All");
+                setSearchTerm("");
+              }}
+              className="mt-4 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition cursor-pointer"
+            >
+              Reset Filters & View All
+            </button>
           </div>
         )}
 
       </div>
+
+      {/* Notice Detail Modal */}
+      <NoticeModal
+        notice={activeNotice}
+        onClose={() => setActiveNotice(null)}
+      />
+
     </div>
   );
 }

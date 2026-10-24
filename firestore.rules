@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 1. Public Collections (public read, authenticated write)
+    match /notices/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /events/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /gallery/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /faculty/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /downloads/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Supporting institutional collections used across the portal
+    match /staff/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /organizations/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /agencies/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /alumni/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /activities/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /achievements/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /programmes/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Media & Educational Resources
+    match /media/{mediaId} {
+      allow read: if resource.data.isPublishedToGallery == true || request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /resources/{resourceId} {
+      allow read: if resource.data.isPublic == true || request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // 2 & 3. User profiles and private administrative collections
+    match /users/{userId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /admin/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

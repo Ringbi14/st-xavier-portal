@@ -6,11 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy:rules": "node scripts/deploy-rules.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",
     "firebase": "^12.18.0",
+    "firebase-admin": "^14.4.0",
     "lucide-react": "^1.37.0",
     "next": "16.3.3",
     "react": "19.2.8",

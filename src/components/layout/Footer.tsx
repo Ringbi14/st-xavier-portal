@@ -67,12 +67,17 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/staff" className="hover:text-teal-700 transition">
-                  Faculty & Field Supervisors
+                <Link href="/programmes" className="hover:text-teal-700 transition font-semibold text-teal-800">
+                  BSW Programme Curriculum
                 </Link>
               </li>
               <li>
-                <Link href="/organizations" className="hover:text-teal-700 transition">
+                <Link href="/faculty" className="hover:text-teal-700 transition">
+                  Faculty & Supervisors
+                </Link>
+              </li>
+              <li>
+                <Link href="/agencies" className="hover:text-teal-700 transition">
                   Fieldwork & NGO Directory
                 </Link>
               </li>
@@ -83,7 +88,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/gallery" className="hover:text-teal-700 transition">
-                  Fieldwork Photographic Gallery
+                  Fieldwork & Camp Gallery
                 </Link>
               </li>
             </ul>
@@ -101,8 +106,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard" className="hover:text-teal-700 transition">
-                  Process Record Templates & Syllabi
+                <Link href="/resources" className="hover:text-teal-700 transition">
+                  BSW Syllabi & Process Templates
                 </Link>
               </li>
               <li>
@@ -111,8 +116,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/login" className="hover:text-teal-700 transition flex items-center gap-1">
-                  <span>Authorized Portal Access</span>
+                <Link href="/login" className="hover:text-teal-700 transition">
+                  Faculty & Staff Portal
                 </Link>
               </li>
             </ul>
@@ -153,8 +158,15 @@ export default function Footer() {
           <div>
             © {new Date().getFullYear()} Department of Social Work, St. Xavier College, Maram Khunou. All rights reserved.
           </div>
-          <div className="flex items-center gap-1 text-[10px] text-slate-400">
+          <div className="flex items-center gap-3 text-[11px] text-slate-400">
             <span>Affiliated with Manipur University</span>
+            <span>•</span>
+            <Link
+              href="/login"
+              className="text-slate-400 hover:text-teal-800 transition font-medium"
+            >
+              Staff Portal
+            </Link>
           </div>
         </div>
       </div>

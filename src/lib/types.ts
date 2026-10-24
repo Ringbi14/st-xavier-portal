@@ -1,46 +1,157 @@
-export type UserRole = "visitor" | "student" | "faculty" | "admin";
+export type UserRole = "faculty" | "admin";
+export type UserStatus = "active" | "inactive";
 
 export interface UserProfile {
   uid: string;
+  name: string;
   email: string;
-  displayName: string;
-  role: UserRole;
-  batch?: string;
+  role: UserRole | string;
+  status?: UserStatus | string;
+  phone?: string;
+  designation?: string;
   avatarUrl?: string;
-  createdAt?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
-export interface Notice {
+export interface MediaDocument {
+  id: string;
+  fileName: string;
+  title: string;
+  description?: string;
+  storagePath: string;
+  downloadUrl?: string;
+  fileType: "photo" | "video" | "document" | "other";
+  mimeType: string;
+  fileSizeBytes: number;
+  uploaderUid: string;
+  uploaderName: string;
+  uploaderRole: UserRole;
+  storagePartition: "private" | "shared";
+  accessState: "private" | "shared";
+  isPublishedToGallery: boolean;
+  galleryData?: {
+    title: string;
+    description?: string;
+    category: string;
+    location?: string;
+    year?: string;
+    publicUrl: string;
+    publishedAt: any;
+    publishedByUid: string;
+  };
+  moderation?: {
+    reviewedAt?: any;
+    reviewedByUid?: string;
+    status: "pending" | "approved" | "rejected";
+    notes?: string;
+  };
+  createdAt: any;
+  updatedAt: any;
+  updatedByUid?: string;
+}
+
+export interface ResourceDocument {
   id: string;
   title: string;
-  content: string;
-  category: "academic" | "fieldwork" | "examination" | "general";
-  priority: "normal" | "important" | "urgent";
+  category: "Fieldwork" | "Syllabus" | "Templates" | "Guidelines" | "General";
+  description: string;
+  fileType: string;
+  fileSize: string;
   isPublic: boolean;
-  publishedAt: string;
-  attachmentUrl?: string;
+  storagePath?: string;
+  downloadUrl: string;
+  updatedDate: string;
+  createdAt: any;
+  createdByUid: string;
 }
 
-export interface DepartmentEvent {
+export type NoticeCategory = "Fieldwork" | "Exam" | "Rural Camp" | "General";
+
+export interface NoticeDocument {
   id: string;
   title: string;
   date: string;
-  time: string;
-  venue: string;
+  category: NoticeCategory | string;
   description: string;
-  organizer: string;
-  resourcePerson?: string;
-  isUpcoming: boolean;
-  coverImage?: string;
+  body?: string;
+  attachmentUrl?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export type DownloadCategory = "Fieldwork Forms" | "Syllabus" | "Camp Manuals" | "General Guidelines";
+export type DownloadProgram = "All" | "BSW";
+
+export interface DownloadItem {
+  id: string;
+  title: string;
+  category: DownloadCategory | string;
+  targetProgram: DownloadProgram | string;
+  url: string;
+  note?: string;
+  fileName?: string;
+  fileSizeBytes?: number;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export type ShowcaseCategory =
+  | "Rural Camp"
+  | "Community Awareness"
+  | "Agency Visit"
+  | "Department Event";
+
+export interface ShowcaseItem {
+  id?: string;
+  title: string;
+  category: ShowcaseCategory | string;
+  academicYear: string;
+  location: string;
+  impactSummary?: string;
+  description?: string;
+  imageUrl: string;
+  createdAt?: any;
+  updatedAt?: any;
+  galleryData?: any;
 }
 
 export interface FacultyMember {
-  id: string;
+  id?: string;
   name: string;
   designation: string;
-  qualification: string;
   specialization: string;
-  bio: string;
-  photoUrl?: string;
-  email?: string;
+  email: string;
+  officeExtension?: string;
+  qualification?: string;
+  bio?: string;
+  imageUrl?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }
+
+export type AgencyDomain =
+  | "Community Development"
+  | "Child & Youth Welfare"
+  | "Healthcare & Mental Health"
+  | "Women & Family"
+  | "Environment & Livelihood"
+  | "Medical & Psychiatric"
+  | "Human Resources"
+  | string;
+
+export interface AgencyItem {
+  id?: string;
+  name: string;
+  domain: AgencyDomain | string;
+  location: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  description?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+

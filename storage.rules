@@ -1,0 +1,60 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    function isApprovedStudent() {
+      return isAuthenticated() && request.auth.token.approved == true;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidSize() {
+      return request.resource.size <= 50 * 1024 * 1024;
+    }
+
+    function isValidMime() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp)')
+          || request.resource.contentType.matches('video/(mp4|webm)')
+          || request.resource.contentType == 'application/pdf'
+          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+          || request.resource.contentType == 'application/zip'
+          || request.resource.contentType == 'text/plain';
+    }
+
+    match /resources/public/{resourceId}/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && request.resource.size <= 30 * 1024 * 1024;
+    }
+
+    match /resources/internal/{resourceId}/{fileName} {
+      allow read: if isApprovedStudent() || isAdmin();
+      allow write: if isAdmin() && request.resource.size <= 30 * 1024 * 1024;
+    }
+
+    match /media/private/{userId}/{mediaId}/{fileName} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if (isOwner(userId) || isAdmin()) && isValidSize() && isValidMime();
+      allow update: if (isOwner(userId) || isAdmin()) && isValidSize() && isValidMime();
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /media/shared/{userId}/{mediaId}/{fileName} {
+      allow read: if isApprovedStudent() || isAdmin();
+      allow create: if (isOwner(userId) || isAdmin()) && isValidSize() && isValidMime();
+      allow update: if (isOwner(userId) || isAdmin()) && isValidSize() && isValidMime();
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+  }
+}
