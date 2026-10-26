@@ -26,6 +26,70 @@ const CATEGORY_TABS: { label: string; value: string }[] = [
   { label: "Department Events", value: "Department Event" },
 ];
 
+function ShowcaseCardImage({ imageUrl, title }: { imageUrl?: string; title: string }) {
+  const [hasError, setHasError] = useState(false);
+  const cleanUrl = imageUrl?.trim();
+
+  useEffect(() => {
+    setHasError(false);
+  }, [cleanUrl]);
+
+  if (cleanUrl && !hasError) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={cleanUrl}
+        alt={title}
+        onError={() => setHasError(true)}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-teal-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-4 text-center select-none">
+      <div className="w-12 h-12 rounded-2xl bg-teal-800/30 border border-teal-600/40 flex items-center justify-center text-teal-400 mb-2 shadow-inner">
+        <Camera className="w-6 h-6" />
+      </div>
+      <span className="text-[11px] font-bold text-teal-200/80 tracking-wide">
+        Practicum Fieldwork Photo
+      </span>
+      <span className="text-[9px] text-slate-400 mt-0.5">
+        BSW Department Archive
+      </span>
+    </div>
+  );
+}
+
+function ShowcaseModalImage({ imageUrl, title }: { imageUrl?: string; title: string }) {
+  const [hasError, setHasError] = useState(false);
+  const cleanUrl = imageUrl?.trim();
+
+  useEffect(() => {
+    setHasError(false);
+  }, [cleanUrl]);
+
+  if (cleanUrl && !hasError) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={cleanUrl}
+        alt={title}
+        onError={() => setHasError(true)}
+        className="max-h-[60vh] w-auto max-w-full object-contain"
+      />
+    );
+  }
+
+  return (
+    <div className="h-64 w-full flex flex-col items-center justify-center text-slate-400 p-8 space-y-2 select-none">
+      <Camera className="w-12 h-12 text-teal-600/70" />
+      <span className="text-xs font-semibold text-slate-300">Fieldwork documentation photograph</span>
+      <span className="text-[10px] text-slate-500">Image is pending archive upload or link verification</span>
+    </div>
+  );
+}
+
 export default function ShowcaseSection({ isStandalonePage = false }: { isStandalonePage?: boolean }) {
   const [items, setItems] = useState<ShowcaseItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,10 +116,10 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
             id: doc.id,
             title: d.title || d.galleryData?.title || "Fieldwork Highlight",
             category: (d.category || d.galleryData?.category || "Rural Camp") as ShowcaseCategory,
-            academicYear: d.academicYear || d.galleryData?.year || "2025-2026",
+            academicYear: d.academicYear || d.galleryData?.year || d.year || "2025-2026",
             location: d.location || d.galleryData?.location || "Senapati District, Manipur",
             impactSummary: d.impactSummary || d.galleryData?.description || d.description || "",
-            imageUrl: d.imageUrl || d.galleryData?.publicUrl || "/dept-logo.png",
+            imageUrl: (d.photoUrl || d.imageUrl || d.galleryData?.photoUrl || d.galleryData?.imageUrl || d.galleryData?.publicUrl || d.publicUrl || "").trim(),
             createdAt: d.createdAt,
             updatedAt: d.updatedAt,
           });
@@ -214,14 +278,8 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
                   <div>
                     {/* Cover photo with zoom effect */}
                     <div className="relative aspect-16/10 w-full bg-slate-100 overflow-hidden flex items-center justify-center">
-                      <Image
-                        src={item.imageUrl || "/dept-logo.png"}
-                        alt={item.title}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <ShowcaseCardImage imageUrl={item.imageUrl} title={item.title} />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                       
                       {/* Hover Fullscreen Badge */}
                       <div className="absolute top-3 right-3 p-2 rounded-xl bg-white/90 backdrop-blur-xs text-slate-700 opacity-0 group-hover:opacity-100 transition shadow-xs">
@@ -286,12 +344,10 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
             className="bg-white rounded-3xl max-w-3xl w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[90vh]"
           >
             {/* Modal Image Area */}
-            <div className="relative aspect-16/10 w-full bg-slate-950 overflow-hidden flex items-center justify-center">
-              <Image 
-                src={activeModal.imageUrl || "/dept-logo.png"} 
-                alt={activeModal.title} 
-                fill 
-                className="object-contain" 
+            <div className="relative aspect-16/10 w-full bg-slate-950 overflow-hidden flex items-center justify-center p-2">
+              <ShowcaseModalImage 
+                imageUrl={activeModal.imageUrl} 
+                title={activeModal.title} 
               />
               <button 
                 onClick={() => setActiveModal(null)} 

@@ -100,6 +100,34 @@ const FALLBACK_HIGHLIGHTS: HighlightItem[] = [
   },
 ];
 
+function HomeHighlightImage({ imageUrl, title }: { imageUrl?: string; title: string }) {
+  const [hasError, setHasError] = useState(false);
+  const cleanUrl = imageUrl?.trim();
+
+  useEffect(() => {
+    setHasError(false);
+  }, [cleanUrl]);
+
+  if (cleanUrl && !hasError) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={cleanUrl}
+        alt={title}
+        onError={() => setHasError(true)}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-teal-950 to-slate-900 flex flex-col items-center justify-center p-3 text-center select-none">
+      <Camera className="w-6 h-6 text-teal-400 mb-1" />
+      <span className="text-[10px] font-bold text-teal-200">Fieldwork Archive</span>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const [notices, setNotices] = useState<NoticeItem[]>(FALLBACK_NOTICES);
   const [activeNotice, setActiveNotice] = useState<NoticeItem | null>(null);
@@ -175,7 +203,7 @@ export default function HomePage() {
               category: data.category || "Fieldwork",
               location: data.location || "Senapati District",
               year: data.year || "2025-2026",
-              imageUrl: data.imageUrl || FALLBACK_HIGHLIGHTS[0].imageUrl,
+              imageUrl: (data.photoUrl || data.imageUrl || data.publicUrl || FALLBACK_HIGHLIGHTS[0].imageUrl).trim(),
             };
           });
           setHighlights(items);
@@ -457,13 +485,7 @@ export default function HomePage() {
             >
               {/* Image Container */}
               <div className="relative aspect-4/3 w-full bg-slate-100 overflow-hidden">
-                <Image
-                  src={item.imageUrl || FALLBACK_HIGHLIGHTS[0].imageUrl!}
-                  alt={item.title}
-                  fill
-                  unoptimized
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                />
+                <HomeHighlightImage imageUrl={item.imageUrl} title={item.title} />
                 <div className="absolute top-2.5 left-2.5">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-black/60 backdrop-blur-xs text-white border border-white/20">
                     {item.category}

@@ -49,6 +49,42 @@ const DEFAULT_FACULTY_FALLBACK: FacultyMember[] = [
   },
 ];
 
+function DirectoryAvatar({ name, imageUrl }: { name: string; imageUrl?: string }) {
+  const [hasError, setHasError] = useState(false);
+  const cleanUrl = imageUrl?.trim();
+
+  useEffect(() => {
+    setHasError(false);
+  }, [cleanUrl]);
+
+  const cleanName = (name || "")
+    .replace(/^(Dr\.|Prof\.|Rev\.|Fr\.|Mr\.|Ms\.|Mrs\.)\s+/gi, "")
+    .replace(/,\s*(S\.J\.|Ph\.D\.|MSW|M\.Phil\.).*$/gi, "")
+    .trim();
+  const words = cleanName.split(/\s+/).filter(Boolean);
+  const initials = words.length >= 2 ? (words[0][0] + words[words.length - 1][0]).toUpperCase() : cleanName.slice(0, 2).toUpperCase() || "SX";
+
+  if (cleanUrl && !hasError) {
+    return (
+      <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-200 overflow-hidden shrink-0 shadow-xs group-hover:scale-105 transition-transform duration-300">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={cleanUrl}
+          alt={name}
+          onError={() => setHasError(true)}
+          className="w-full h-full object-cover"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-800 to-slate-900 border border-teal-700/50 flex items-center justify-center text-teal-100 font-black text-xl shrink-0 shadow-xs group-hover:scale-105 transition-transform duration-300 select-none">
+      <span>{initials}</span>
+    </div>
+  );
+}
+
 export default function FacultySection({ isStandalonePage = false }: { isStandalonePage?: boolean }) {
   const [facultyList, setFacultyList] = useState<FacultyMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +115,7 @@ export default function FacultySection({ isStandalonePage = false }: { isStandal
               officeExtension: d.officeExtension,
               qualification: d.qualification,
               bio: d.bio,
-              imageUrl: d.imageUrl,
+              imageUrl: (d.photoUrl || d.imageUrl || d.publicUrl || "").trim(),
             });
           });
           setFacultyList(loaded);
@@ -204,20 +240,7 @@ export default function FacultySection({ isStandalonePage = false }: { isStandal
                 <div className="space-y-4">
                   {/* Avatar & Header */}
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-800 font-black text-xl overflow-hidden shrink-0 shadow-xs group-hover:scale-105 transition-transform duration-300">
-                      {faculty.imageUrl ? (
-                        <Image
-                          src={faculty.imageUrl}
-                          alt={faculty.name}
-                          width={56}
-                          height={56}
-                          unoptimized
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span>{faculty.name.replace(/^(Dr\.|Prof\.|Mr\.|Ms\.)\s*/i, "").charAt(0)}</span>
-                      )}
-                    </div>
+                    <DirectoryAvatar name={faculty.name} imageUrl={faculty.imageUrl} />
                     <div>
                       <h3 className="text-base font-bold text-slate-900 group-hover:text-teal-800 transition">
                         {faculty.name}

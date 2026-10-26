@@ -146,22 +146,31 @@ function FacultyAvatar({
 }: {
   name: string;
   imageUrl?: string;
-  size?: "md" | "lg";
+  size?: "sm" | "md" | "lg";
 }) {
   const [hasError, setHasError] = useState(false);
   const initials = getInitials(name);
 
+  // Reset error when imageUrl prop changes
+  useEffect(() => {
+    setHasError(false);
+  }, [imageUrl]);
+
   const sizeClasses =
     size === "lg"
       ? "w-20 h-20 text-xl rounded-2xl"
+      : size === "sm"
+      ? "w-10 h-10 text-xs rounded-xl"
       : "w-14 h-14 text-base rounded-2xl";
 
-  if (imageUrl && !hasError) {
+  const cleanUrl = imageUrl?.trim();
+
+  if (cleanUrl && !hasError) {
     return (
       <div className={`relative ${sizeClasses} overflow-hidden bg-slate-100 shrink-0 border border-slate-200 shadow-xs`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={imageUrl}
+          src={cleanUrl}
           alt={name}
           onError={() => setHasError(true)}
           className="w-full h-full object-cover"
@@ -181,6 +190,7 @@ function FacultyAvatar({
 
 export default function FacultyPage() {
   const [facultyList, setFacultyList] = useState<FacultyMember[]>(DEFAULT_FACULTY);
+  const [leadershipList, setLeadershipList] = useState<LeadershipMember[]>(COLLEGE_LEADERSHIP);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
@@ -191,36 +201,44 @@ export default function FacultyPage() {
       try {
         setLoading(true);
         const colRef = collection(db, "faculty");
-        let docsData: FacultyMember[] = [];
+        let rawDocs: any[] = [];
 
         try {
-          const q = query(colRef, orderBy("createdAt", "desc"), limit(20));
+          const q = query(colRef, orderBy("createdAt", "desc"), limit(30));
           const snap = await getDocs(q);
           if (!snap.empty) {
-            docsData = snap.docs.map((doc) => {
-              const d = doc.data();
-              return {
-                id: doc.id,
-                name: d.name || "Faculty Member",
-                designation: d.designation || "Assistant Professor",
-                qualification: d.qualification,
-                specialization: d.specialization || "Social Work",
-                supervisoryRole: d.supervisoryRole || "Fieldwork Supervisor",
-                email: d.email || "",
-                officeExtension: d.officeExtension,
-                imageUrl: d.imageUrl,
-                bio: d.bio,
-              };
-            });
+            rawDocs = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
           }
         } catch (queryErr) {
           console.warn("Ordered faculty query fell back:", queryErr);
-          const fallbackSnap = await getDocs(query(colRef, limit(20)));
+          const fallbackSnap = await getDocs(query(colRef, limit(30)));
           if (!fallbackSnap.empty) {
-            docsData = fallbackSnap.docs.map((doc) => {
-              const d = doc.data();
-              return {
-                id: doc.id,
+            rawDocs = fallbackSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+          }
+        }
+
+        if (rawDocs.length > 0 && isMounted) {
+          const leadershipFromDb = rawDocs.filter((d) => d.categoryTier === "College Leadership");
+          const facultyFromDb = rawDocs.filter((d) => d.categoryTier !== "College Leadership");
+
+          if (leadershipFromDb.length > 0) {
+            setLeadershipList(
+              leadershipFromDb.map((d) => ({
+                id: d.id,
+                name: d.name || "Leadership Member",
+                qualifications: d.qualification || "",
+                designation: d.designation || "College Executive",
+                affiliation: d.affiliation || "St. Xavier College, Maram Khunou | Affiliated to Manipur University",
+                roleNote: d.supervisoryRole || "College Leadership & Patron",
+                imageUrl: (d.photoUrl || d.imageUrl || d.publicUrl || "").trim(),
+              }))
+            );
+          }
+
+          if (facultyFromDb.length > 0) {
+            setFacultyList(
+              facultyFromDb.map((d) => ({
+                id: d.id,
                 name: d.name || "Faculty Member",
                 designation: d.designation || "Assistant Professor",
                 qualification: d.qualification,
@@ -228,15 +246,11 @@ export default function FacultyPage() {
                 supervisoryRole: d.supervisoryRole || "Fieldwork Supervisor",
                 email: d.email || "",
                 officeExtension: d.officeExtension,
-                imageUrl: d.imageUrl,
+                imageUrl: (d.photoUrl || d.imageUrl || d.publicUrl || "").trim(),
                 bio: d.bio,
-              };
-            });
+              }))
+            );
           }
-        }
-
-        if (docsData.length > 0 && isMounted) {
-          setFacultyList(docsData);
         }
       } catch (err) {
         console.warn("Could not fetch faculty from Firestore, using default directory:", err);
@@ -316,7 +330,7 @@ export default function FacultyPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {COLLEGE_LEADERSHIP.map((leader) => (
+            {leadershipList.map((leader) => (
               <div
                 key={leader.id}
                 className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs hover:border-teal-400 hover:shadow-md transition flex flex-col justify-between group space-y-4"

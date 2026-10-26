@@ -37,6 +37,9 @@ import {
   Loader2,
   Sparkles,
   ArrowRight,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 type AdminTab = "notices" | "resources" | "showcase" | "agencies" | "faculty";
@@ -779,6 +782,248 @@ function ResourcesTab() {
 }
 
 // ====================================================================
+// SHARED CLOUDINARY UPLOAD & AVATAR HELPERS
+// ====================================================================
+function CloudinaryUploadField({
+  label,
+  value,
+  onChange,
+  required = false,
+  placeholder = "https://res.cloudinary.com/... or paste image URL",
+}: {
+  label: string;
+  value: string;
+  onChange: (url: string) => void;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [hasPreviewError, setHasPreviewError] = useState(false);
+
+  useEffect(() => {
+    setHasPreviewError(false);
+    setUploadError(null);
+  }, [value]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image file (PNG, JPG, WEBP).");
+      return;
+    }
+
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "ixvakf7c";
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "sxc_uploads";
+
+    try {
+      setIsUploading(true);
+      setUploadError(null);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorJson = await res.json().catch(() => ({}));
+        throw new Error(errorJson.error?.message || `Upload failed with status ${res.status}`);
+      }
+
+      const data = await res.json();
+      let secureUrl = data.secure_url || data.url;
+      if (!secureUrl) {
+        throw new Error("No secure URL returned by Cloudinary");
+      }
+
+      if (typeof secureUrl === "string" && secureUrl.startsWith("http://")) {
+        secureUrl = secureUrl.replace("http://", "https://");
+      }
+
+      onChange(secureUrl);
+    } catch (err: any) {
+      console.error("Cloudinary direct upload failed:", err);
+      setUploadError(err.message || "Failed to upload to Cloudinary. You can still paste an image URL directly.");
+    } finally {
+      setIsUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="block text-[11px] font-bold text-slate-700">
+          {label} {required && "*"}
+        </label>
+        <label className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 rounded-lg border border-teal-200 cursor-pointer transition">
+          {isUploading ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-700" />
+              <span>Uploading to Cloudinary...</span>
+            </>
+          ) : (
+            <>
+              <Upload className="w-3.5 h-3.5 text-teal-700" />
+              <span>Upload Photo (Cloudinary)</span>
+            </>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            disabled={isUploading}
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+        </label>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="url"
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="p-2 text-slate-400 hover:text-rose-600 rounded-xl border border-slate-200 hover:border-rose-200 hover:bg-rose-50 transition cursor-pointer shrink-0"
+            title="Clear Photo URL"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {uploadError && (
+        <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-[11px] flex items-center gap-1.5">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
+          <span>{uploadError}</span>
+        </div>
+      )}
+
+      {/* Live Preview Box */}
+      {value && (
+        <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-3">
+          <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-200 border border-slate-300 shrink-0 relative flex items-center justify-center">
+            {!hasPreviewError ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={value}
+                alt="Preview"
+                onError={() => setHasPreviewError(true)}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Camera className="w-5 h-5 text-slate-400" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {!hasPreviewError ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  Image Verified
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                  <AlertCircle className="w-3 h-3 text-amber-600" />
+                  Image Failed to Load (Fallback active)
+                </span>
+              )}
+              {value.includes("res.cloudinary.com") && (
+                <span className="text-[10px] font-mono text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                  Cloudinary HTTPS
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] font-mono text-slate-500 truncate mt-1">
+              {value}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminFacultyAvatar({ name, imageUrl }: { name: string; imageUrl?: string }) {
+  const [hasError, setHasError] = useState(false);
+  const cleanUrl = imageUrl?.trim();
+
+  useEffect(() => {
+    setHasError(false);
+  }, [cleanUrl]);
+
+  const cleanName = (name || "")
+    .replace(/^(Dr\.|Prof\.|Rev\.|Fr\.|Mr\.|Ms\.|Mrs\.)\s+/gi, "")
+    .replace(/,\s*(S\.J\.|Ph\.D\.|MSW|M\.Phil\.).*$/gi, "")
+    .trim();
+  const words = cleanName.split(/\s+/).filter(Boolean);
+  const initials = words.length >= 2 ? (words[0][0] + words[words.length - 1][0]).toUpperCase() : cleanName.slice(0, 2).toUpperCase() || "SX";
+
+  if (cleanUrl && !hasError) {
+    return (
+      <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={cleanUrl}
+          alt={name}
+          onError={() => setHasError(true)}
+          className="w-full h-full object-cover"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-800 to-slate-900 border border-teal-700/50 flex items-center justify-center text-teal-100 font-black text-xs shrink-0 select-none">
+      <span>{initials}</span>
+    </div>
+  );
+}
+
+function AdminShowcaseImage({ imageUrl, title }: { imageUrl?: string; title: string }) {
+  const [hasError, setHasError] = useState(false);
+  const cleanUrl = imageUrl?.trim();
+
+  useEffect(() => {
+    setHasError(false);
+  }, [cleanUrl]);
+
+  if (cleanUrl && !hasError) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={cleanUrl}
+        alt={title}
+        onError={() => setHasError(true)}
+        className="w-full h-full object-cover"
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center text-slate-400 p-2 select-none">
+      <Camera className="w-6 h-6 text-slate-300 mb-1" />
+      <span className="text-[10px] font-semibold text-slate-400">
+        {cleanUrl ? "Image Unavailable" : "No Photo"}
+      </span>
+    </div>
+  );
+}
+
+// ====================================================================
 // TAB 3: FIELDWORK & CAMP SHOWCASE (Manage /gallery)
 // ====================================================================
 function ShowcaseTab() {
@@ -819,7 +1064,7 @@ function ShowcaseTab() {
     setAcademicYear(item.academicYear || item.year || "2025-2026");
     setLocation(item.location || "");
     setSummary(item.impactSummary || item.description || "");
-    setImageUrl(item.imageUrl || "");
+    setImageUrl(item.imageUrl || item.photoUrl || item.publicUrl || "");
     setIsModalOpen(true);
   };
 
@@ -832,6 +1077,11 @@ function ShowcaseTab() {
     setIsSubmitting(true);
 
     try {
+      let cleanUrl = imageUrl.trim();
+      if (cleanUrl.startsWith("http://")) {
+        cleanUrl = cleanUrl.replace("http://", "https://");
+      }
+
       const payload = {
         title: title.trim(),
         category,
@@ -840,7 +1090,8 @@ function ShowcaseTab() {
         location: location.trim() || "Senapati District, Manipur",
         impactSummary: summary.trim(),
         description: summary.trim(),
-        imageUrl: imageUrl.trim(),
+        imageUrl: cleanUrl,
+        photoUrl: cleanUrl,
       };
 
       if (editingId) {
@@ -909,13 +1160,8 @@ function ShowcaseTab() {
               className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 hover:shadow-xs transition flex flex-col justify-between space-y-3"
             >
               <div className="space-y-2.5">
-                <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={item.imageUrl}
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                  />
+                <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center">
+                  <AdminShowcaseImage imageUrl={item.imageUrl || item.photoUrl} title={item.title} />
                   <span className="absolute top-2 left-2 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-black/70 text-white">
                     {item.category}
                   </span>
@@ -1038,19 +1284,13 @@ function ShowcaseTab() {
                 />
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Cover Photo / Image URL *
-                </label>
-                <input
-                  type="url"
-                  required
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-                />
-              </div>
+              <CloudinaryUploadField
+                label="Cover Photo / Image URL"
+                required={true}
+                value={imageUrl}
+                onChange={setImageUrl}
+                placeholder="https://res.cloudinary.com/... or paste image URL"
+              />
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
@@ -1475,7 +1715,7 @@ function FacultyTab() {
     setDesignation(item.designation || "");
     setSpecialization(item.specialization || "");
     setEmail(item.email || "");
-    setImageUrl(item.imageUrl || "");
+    setImageUrl(item.imageUrl || item.photoUrl || "");
     setQualification(item.qualification || "");
     setSupervisoryRole(item.supervisoryRole || "");
     setIsModalOpen(true);
@@ -1490,13 +1730,18 @@ function FacultyTab() {
     setIsSubmitting(true);
 
     try {
+      let cleanImg = imageUrl.trim();
+      if (cleanImg.startsWith("http://")) {
+        cleanImg = cleanImg.replace("http://", "https://");
+      }
       const payload = {
         name: name.trim(),
         categoryTier,
         designation: designation.trim(),
         specialization: specialization.trim() || "Social Work",
         email: email.trim().toLowerCase(),
-        imageUrl: imageUrl.trim() || undefined,
+        imageUrl: cleanImg,
+        photoUrl: cleanImg,
         qualification: qualification.trim() || undefined,
         supervisoryRole: supervisoryRole.trim() || undefined,
       };
@@ -1575,17 +1820,22 @@ function FacultyTab() {
               {faculty.map((f) => (
                 <tr key={f.id} className="hover:bg-slate-50/80 transition">
                   <td className="py-3 px-4 align-top">
-                    <div className="font-bold text-slate-900 text-xs sm:text-sm">
-                      {f.name}
-                    </div>
-                    <div className="text-[11px] font-semibold text-teal-800 mt-0.5">
-                      {f.designation}
-                    </div>
-                    {f.qualification && (
-                      <div className="text-[10px] text-slate-400 font-mono">
-                        {f.qualification}
+                    <div className="flex items-center gap-3">
+                      <AdminFacultyAvatar name={f.name} imageUrl={f.imageUrl || f.photoUrl} />
+                      <div>
+                        <div className="font-bold text-slate-900 text-xs sm:text-sm">
+                          {f.name}
+                        </div>
+                        <div className="text-[11px] font-semibold text-teal-800 mt-0.5">
+                          {f.designation}
+                        </div>
+                        {f.qualification && (
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {f.qualification}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </td>
 
                   <td className="py-3 px-4 align-top">
@@ -1735,7 +1985,7 @@ function FacultyTab() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
                     Official Email
@@ -1749,18 +1999,12 @@ function FacultyTab() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Photo URL (Optional)
-                  </label>
-                  <input
-                    type="url"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
-                  />
-                </div>
+                <CloudinaryUploadField
+                  label="Profile Photo (Cloudinary / Web URL)"
+                  value={imageUrl}
+                  onChange={setImageUrl}
+                  placeholder="https://res.cloudinary.com/... or paste image URL"
+                />
               </div>
 
               {categoryTier === "Department Faculty" && (
