@@ -19,10 +19,10 @@ export default function PublicResourcesPage() {
             </span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-[#0f2042] tracking-tight">
-            BSW Student Resource Desk & Fieldwork Log Sheets
+            BSW Student Resource Desk & Curriculum Repository
           </h1>
           <p className="text-sm sm:text-base text-slate-600 mt-2 max-w-3xl leading-relaxed">
-            Official curriculum documentation, daily fieldwork observation sheets, practicum evaluation rubrics, and rural camp manuals for Bachelor of Social Work students.
+            Official curriculum documentation, course credit frameworks, practicum guidelines, and rural camp manuals for Bachelor of Social Work students.
           </p>
         </div>
       </div>

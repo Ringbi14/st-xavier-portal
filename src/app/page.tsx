@@ -288,7 +288,7 @@ export default function HomePage() {
               className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-white hover:bg-slate-100 text-[#0f2042] border border-slate-300 text-sm font-semibold transition shadow-xs hover:border-[#0f2042]"
             >
               <FileText className="w-4 h-4 text-amber-600" />
-              <span>BSW Fieldwork Logs & Desk</span>
+              <span>Academic Resources & Desk</span>
             </Link>
           </div>
 
