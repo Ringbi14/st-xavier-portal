@@ -5,11 +5,11 @@ import Link from "next/link";
 import { db } from "@/lib/firebase";
 import {
   collection,
-  getDocs,
   query,
   where,
   addDoc,
   serverTimestamp,
+  onSnapshot,
 } from "firebase/firestore";
 import { AlumniProfile, AlumniSector } from "@/lib/types";
 import {
@@ -36,10 +36,11 @@ import {
   Globe2,
 } from "lucide-react";
 
-// Realistic Seeded BSW Alumni Profiles (St. Xavier College, Maram Khunou, Est. 2019)
+// Single Clean Reference BSW Alumni Profile (St. Xavier College, Maram Khunou - Est. 2019)
+// Serves as an exemplar model showing role, organization, location, higher studies, and junior advice
 const SEEDED_ALUMNI: AlumniProfile[] = [
   {
-    id: "alumni-1",
+    id: "alumni-ref-1",
     fullName: "K. Victor Maram",
     batchYear: "2019-2022",
     currentRole: "District Child Protection Officer (DCPO)",
@@ -47,90 +48,10 @@ const SEEDED_ALUMNI: AlumniProfile[] = [
     sector: "Public Sector",
     location: "Senapati District, Manipur",
     higherStudies: "MSW (Tata Institute of Social Sciences - TISS)",
-    quote: "The intensive concurrent fieldwork at St. Xavier taught me that social legislation only matters when translated to tribal grassroots reality. Cherish every supervision conference.",
+    quote: "The intensive concurrent fieldwork and village camps at St. Xavier taught me that social legislation only truly matters when translated to tribal grassroots reality. Cherish every supervision conference and community interaction.",
     photoUrl: "",
     linkedinUrl: "https://linkedin.com",
     email: "victor.m@alumni.stxaviercollegespt.ac.in",
-    status: "approved",
-    createdAt: null,
-  },
-  {
-    id: "alumni-2",
-    fullName: "Mary Grace Shingnaisui",
-    batchYear: "2020-2023",
-    currentRole: "Community Project Coordinator",
-    organization: "World Vision India (Northeast Division)",
-    sector: "Child Welfare",
-    location: "Imphal, Manipur",
-    higherStudies: "MSW in Social Development (Delhi School of Social Work)",
-    quote: "Our 10-day rural educational camp in Maram Khunou was where I truly learned participatory appraisals (PRA) and listening without prejudice. That foundation still guides my project assessments.",
-    photoUrl: "",
-    linkedinUrl: "https://linkedin.com",
-    email: "mary.grace@alumni.stxaviercollegespt.ac.in",
-    status: "approved",
-    createdAt: null,
-  },
-  {
-    id: "alumni-3",
-    fullName: "T. Samuel Paomei",
-    batchYear: "2020-2023",
-    currentRole: "Rural Livelihoods & Enterprise Specialist",
-    organization: "NERCORMP (North Eastern Region Community Resource Management)",
-    sector: "Rural Development",
-    location: "Ukhrul, Manipur",
-    higherStudies: "Postgraduate Diploma in Rural Management (IRMA)",
-    quote: "Process recordings used to seem demanding, but they developed the self-awareness I need when organizing farmer producer groups and village SHG federations.",
-    photoUrl: "",
-    linkedinUrl: "https://linkedin.com",
-    email: "samuel.p@alumni.stxaviercollegespt.ac.in",
-    status: "approved",
-    createdAt: null,
-  },
-  {
-    id: "alumni-4",
-    fullName: "Dr. Christine Hmar",
-    batchYear: "2019-2022",
-    currentRole: "Assistant Professor & Research Fellow",
-    organization: "Department of Social Work, Central University of Mizoram",
-    sector: "Higher Education",
-    location: "Aizawl, Mizoram",
-    higherStudies: "Ph.D. in Social Work (UGC-JRF Fellow)",
-    quote: "Hold fast to St. Xavier's institutional motto: 'Education for Service'. When academia connects with grassroots hill communities, real transformation takes root.",
-    photoUrl: "",
-    linkedinUrl: "https://linkedin.com",
-    email: "christine.hmar@mzu.ac.in",
-    status: "approved",
-    createdAt: null,
-  },
-  {
-    id: "alumni-5",
-    fullName: "L. Anthony Thangal",
-    batchYear: "2021-2024",
-    currentRole: "Medical Social Worker",
-    organization: "Regional Institute of Medical Sciences (RIMS Hospital)",
-    sector: "Healthcare & Mental Health",
-    location: "Imphal, Manipur",
-    higherStudies: "MSW (Medical & Psychiatric Social Work)",
-    quote: "Hospital casework demands active listening and unshakeable compassion. St. Xavier's clinical field postings prepared me to navigate medical crises with patient families.",
-    photoUrl: "",
-    linkedinUrl: "https://linkedin.com",
-    email: "anthony.thangal@alumni.stxaviercollegespt.ac.in",
-    status: "approved",
-    createdAt: null,
-  },
-  {
-    id: "alumni-6",
-    fullName: "V. Esther Zimik",
-    batchYear: "2021-2024",
-    currentRole: "Program Officer (Child Rights & Anti-Trafficking)",
-    organization: "FXB India Suraksha (Northeast Region)",
-    sector: "Child Welfare",
-    location: "Senapati, Manipur",
-    higherStudies: "MSW in Human Rights & Advocacy",
-    quote: "From our first semester observational visits to final block placement, the faculty supervisors constantly challenged us to defend human dignity without compromise.",
-    photoUrl: "",
-    linkedinUrl: "https://linkedin.com",
-    email: "esther.zimik@fxbsuraksha.org",
     status: "approved",
     createdAt: null,
   },
@@ -209,47 +130,53 @@ export default function AlumniPage() {
 
   useEffect(() => {
     let isMounted = true;
+    setLoading(true);
 
-    async function fetchApprovedAlumni() {
-      try {
-        setLoading(true);
-        const colRef = collection(db, "alumni");
-        const q = query(colRef, where("status", "==", "approved"));
-        const snap = await getDocs(q);
-
-        if (!snap.empty && isMounted) {
-          const list: AlumniProfile[] = snap.docs.map((doc) => ({
-            id: doc.id,
-            ...(doc.data() as Omit<AlumniProfile, "id">),
-          }));
-          // Merge with seeded fallback to maintain a rich directory
-          const merged = [...list];
-          SEEDED_ALUMNI.forEach((seed) => {
-            if (!merged.some((m) => m.fullName.toLowerCase() === seed.fullName.toLowerCase())) {
-              merged.push(seed);
-            }
-          });
-          setAlumni(merged);
-        } else if (isMounted) {
-          setAlumni(SEEDED_ALUMNI);
-        }
-      } catch (err) {
-        console.warn("Could not query Firestore alumni, using seeded registry:", err);
-        if (isMounted) {
-          setAlumni(SEEDED_ALUMNI);
-        }
-      } finally {
-        if (isMounted) {
+    try {
+      const colRef = collection(db, "alumni");
+      const q = query(colRef, where("status", "==", "approved"));
+      const unsubscribe = onSnapshot(
+        q,
+        (snap) => {
+          if (!isMounted) return;
+          if (!snap.empty) {
+            const list: AlumniProfile[] = snap.docs.map((doc) => ({
+              id: doc.id,
+              ...(doc.data() as Omit<AlumniProfile, "id">),
+            }));
+            // Dynamically show approved profiles from Firestore + reference model
+            const merged = [...list];
+            SEEDED_ALUMNI.forEach((seed) => {
+              if (!merged.some((m) => m.fullName.toLowerCase() === seed.fullName.toLowerCase())) {
+                merged.push(seed);
+              }
+            });
+            setAlumni(merged);
+          } else {
+            setAlumni(SEEDED_ALUMNI);
+          }
           setLoading(false);
+        },
+        (err) => {
+          console.warn("Firestore snapshot error, falling back to reference alumni:", err);
+          if (isMounted) {
+            setAlumni(SEEDED_ALUMNI);
+            setLoading(false);
+          }
         }
+      );
+
+      return () => {
+        isMounted = false;
+        unsubscribe();
+      };
+    } catch (err) {
+      console.warn("Firestore initialization error, using reference alumni:", err);
+      if (isMounted) {
+        setAlumni(SEEDED_ALUMNI);
+        setLoading(false);
       }
     }
-
-    fetchApprovedAlumni();
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   const filteredAlumni = alumni.filter((item) => {
