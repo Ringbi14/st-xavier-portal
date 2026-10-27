@@ -2220,7 +2220,7 @@ function AlumniTab() {
     setIsSubmitting(true);
 
     try {
-      let cleanPhoto = photoUrl.trim();
+      let cleanPhoto = (photoUrl || "").trim();
       if (cleanPhoto.startsWith("http://")) {
         cleanPhoto = cleanPhoto.replace("http://", "https://");
       }
@@ -2230,13 +2230,13 @@ function AlumniTab() {
         batchYear: batchYear.trim(),
         currentRole: currentRole.trim(),
         organization: organization.trim(),
-        sector,
-        location: location.trim() || "Manipur, India",
-        higherStudies: higherStudies.trim() || undefined,
-        quote: quote.trim() || undefined,
+        sector: sector || "Public Sector",
+        location: (location || "").trim(),
+        higherStudies: (higherStudies || "").trim(),
+        quote: (quote || "").trim(),
         photoUrl: cleanPhoto,
         email: email.trim().toLowerCase(),
-        linkedinUrl: linkedinUrl.trim() || undefined,
+        linkedinUrl: (linkedinUrl || "").trim(),
         status: "approved",
       };
 

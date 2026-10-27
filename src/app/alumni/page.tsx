@@ -730,7 +730,7 @@ function AlumniSubmissionModal({
 
     try {
       setIsSubmitting(true);
-      let cleanPhoto = photoUrl.trim();
+      let cleanPhoto = (photoUrl || "").trim();
       if (cleanPhoto.startsWith("http://")) {
         cleanPhoto = cleanPhoto.replace("http://", "https://");
       }
@@ -740,16 +740,15 @@ function AlumniSubmissionModal({
         batchYear: batchYear.trim(),
         currentRole: currentRole.trim(),
         organization: organization.trim(),
-        sector,
-        location: location.trim() || "Manipur, India",
-        higherStudies: higherStudies.trim() || undefined,
-        quote: quote.trim() || undefined,
-        photoUrl: cleanPhoto,
-        email: email.trim().toLowerCase(),
-        linkedinUrl: linkedinUrl.trim() || undefined,
-        status: "pending", // routed to admin queue
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        sector: sector || "Public Sector / Government",
+        location: location.trim(),
+        higherStudies: (higherStudies || "").trim(),
+        quote: (quote || "").trim(),
+        photoUrl: (cleanPhoto || "").trim(),
+        linkedinUrl: (linkedinUrl || "").trim(),
+        email: email.trim(),
+        status: "pending",
+        createdAt: new Date().toISOString(),
       };
 
       await addDoc(collection(db, "alumni"), payload);
