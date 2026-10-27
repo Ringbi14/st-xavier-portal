@@ -155,4 +155,32 @@ export interface AgencyItem {
   updatedAt?: any;
 }
 
+export type AlumniSector =
+  | "Higher Education"
+  | "Child Welfare"
+  | "Rural Development"
+  | "Public Sector"
+  | "Healthcare & Mental Health"
+  | "NGO & Advocacy"
+  | "CSR & Corporate"
+  | string;
+
+export interface AlumniProfile {
+  id: string;
+  fullName: string;
+  batchYear: string;
+  currentRole: string;
+  organization: string;
+  sector: AlumniSector;
+  location: string;
+  higherStudies?: string;
+  quote?: string;
+  photoUrl?: string;
+  linkedinUrl?: string;
+  email: string;
+  status: "approved" | "pending";
+  createdAt: any;
+  updatedAt?: any;
+}
+
 
