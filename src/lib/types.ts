@@ -92,6 +92,7 @@ export interface DownloadItem {
   note?: string;
   fileName?: string;
   fileSizeBytes?: number;
+  academicYear?: string;
   createdAt?: any;
   updatedAt?: any;
 }

@@ -60,9 +60,9 @@ const NEP_YEARS: YearPath[] = [
       "Human Growth, Behavior & Development",
       "Introduction to Social Problems & Social Welfare",
     ],
-    practicum: "Structured Observational Visits & Lab Practice",
+    practicum: "Orientation & Observational Visits (Senapati & Kangpokpi districts)",
     practicumDetails:
-      "Structured observational exposure visits to grassroots NGOs, welfare institutions, primary health centers, and rural tribal communities in Senapati District.",
+      "Structured observational exposure visits to grassroots NGOs, welfare institutions, primary health centers, and rural tribal communities across Senapati and Kangpokpi districts.",
     accentColor: {
       border: "border-blue-200 hover:border-blue-400",
       badge: "bg-blue-50 text-blue-700 border-blue-200",
@@ -83,9 +83,9 @@ const NEP_YEARS: YearPath[] = [
       "Community Organization & Social Action",
       "Social Policy & Welfare Legislation",
     ],
-    practicum: "Concurrent Fieldwork Practicum (2 Days/Week)",
+    practicum: "Concurrent Fieldwork (CFW) & Supervisory Conferences (IC & GC)",
     practicumDetails:
-      "Continuous placement in recognized development organizations, youth clubs, and rehabilitation centers with weekly process recording submissions.",
+      "Continuous placement in recognized development organizations, youth clubs, and rehabilitation centers with weekly process recording submissions and faculty supervision.",
     accentColor: {
       border: "border-indigo-200 hover:border-indigo-400",
       badge: "bg-indigo-50 text-indigo-700 border-indigo-200",
@@ -106,7 +106,7 @@ const NEP_YEARS: YearPath[] = [
       "Human Rights, Gender & Social Justice Legislation",
       "Mental Health & Psychosocial Support Interventions",
     ],
-    practicum: "10-Day Annual Rural Educational Camp + Concurrent Practicum",
+    practicum: "Annual Feature: 10-Day Rural Educational Living Camp + CFW",
     practicumDetails:
       "Live-in community immersion conducting Participatory Rural Appraisals (PRA), baseline surveys, street plays, and village community mobilization campaigns.",
     accentColor: {
@@ -129,7 +129,7 @@ const NEP_YEARS: YearPath[] = [
       "Corporate Social Responsibility (CSR) & ESG Governance",
       "Independent Research Methodology Seminar",
     ],
-    practicum: "Block Fieldwork Internship & Research Dissertation",
+    practicum: "Block Field Placement / Agency Internship",
     practicumDetails:
       "Four-week full-time intensive pre-professional agency block placement accompanied by a supervised independent empirical research dissertation.",
     accentColor: {
@@ -142,22 +142,32 @@ const NEP_YEARS: YearPath[] = [
 
 const PEDAGOGY_STRIP = [
   {
-    title: "Concurrent Fieldwork",
-    hours: "2 Days Weekly Practicum",
-    desc: "Students spend two continuous days every week placed with partner NGOs and healthcare centers, applying classroom methods directly to real client systems.",
-    icon: Briefcase,
+    stage: "Stage 1 (Year 1)",
+    title: "Orientation & Observational Visits",
+    hours: "Senapati & Kangpokpi districts",
+    desc: "Structured observational exposure visits to grassroots NGOs, welfare institutions, primary health centers, and rural tribal communities.",
+    icon: Compass,
   },
   {
-    title: "Rural Educational Camp",
-    hours: "10-Day Village Immersion",
+    stage: "Stage 2 (Years 2 & 3)",
+    title: "Concurrent Fieldwork (CFW)",
+    hours: "Supervisory Conferences (IC & GC)",
+    desc: "Two days weekly continuous agency placement accompanied by mandatory weekly Individual Conferences (IC) and Group Conferences (GC) with faculty supervisors.",
+    icon: Users,
+  },
+  {
+    stage: "Annual Feature",
+    title: "10-Day Rural Educational Living Camp",
+    hours: "Village Immersion & PRA",
     desc: "Intensive rural living focusing on Participatory Rural Appraisal (PRA) techniques, socio-economic baseline surveys, and grassroots community conscientization.",
     icon: Tent,
   },
   {
-    title: "Individual Supervision",
-    hours: "Weekly Conference (IC/GC)",
-    desc: "One-on-one and group supervisory conferences with faculty fieldwork supervisors for process record analysis, ethics guidance, and self-awareness.",
-    icon: Users,
+    stage: "Stage 4 (Year 4)",
+    title: "Block Field Placement / Agency Internship",
+    hours: "Pre-Professional Block Internship",
+    desc: "Four-week full-time pre-professional internship in specialized hospitals, child protection units, or regional NGOs paired with an empirical research dissertation.",
+    icon: Briefcase,
   },
 ];
 
@@ -481,43 +491,48 @@ export default function ProgrammesPage() {
       </section>
 
       {/* ========================================================= */}
-      {/* 3. SIGNATURE FIELDWORK PEDAGOGY STRIP (3 Highlights)      */}
+      {/* 3. 4-STAGE FIELDWORK PRACTICUM FRAMEWORK                  */}
       {/* ========================================================= */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-16">
-        <div className="p-8 sm:p-10 rounded-3xl bg-slate-900 text-white shadow-sm space-y-8">
+        <div className="p-8 sm:p-10 rounded-3xl bg-[#0f2042] text-white shadow-md border border-[#1e3a8a] space-y-8">
           
-          <div className="text-center max-w-2xl mx-auto">
-            <span className="text-xs font-bold text-teal-400 uppercase tracking-widest block mb-1">
-              Field Practicum Model
+          <div className="text-center max-w-3xl mx-auto">
+            <span className="text-xs font-bold text-amber-300 uppercase tracking-widest block mb-1">
+              Signature Practicum Framework
             </span>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Signature Fieldwork Pedagogy
+              4-Stage Fieldwork Practicum Framework
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed">
-              Social work education derives its strength from the field. Our students undergo structured, supervised community and institutional immersion throughout their progression.
+              Social work education derives its strength from the field. Our students undergo structured, supervised community and institutional immersion throughout their 4-year progression at St. Xavier College, Maram Khunou.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {PEDAGOGY_STRIP.map((p, idx) => {
               const Icon = p.icon;
               return (
                 <div
                   key={idx}
-                  className="p-6 rounded-2xl bg-slate-800/80 border border-slate-700/80 hover:border-teal-500 transition space-y-3"
+                  className="p-6 rounded-2xl bg-slate-900/80 border border-slate-700/80 hover:border-amber-400 transition space-y-3 flex flex-col justify-between"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-teal-500/20 border border-teal-500/40 text-teal-300 flex items-center justify-center">
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white">{p.title}</h3>
-                    <span className="inline-block text-[11px] font-mono text-teal-300 font-semibold mt-0.5">
-                      {p.hours}
+                  <div className="space-y-3">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20 font-mono inline-block">
+                      {p.stage}
                     </span>
+                    <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white leading-snug">{p.title}</h3>
+                      <span className="inline-block text-[11px] font-mono text-amber-300 font-semibold mt-1">
+                        {p.hours}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      {p.desc}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    {p.desc}
-                  </p>
                 </div>
               );
             })}
@@ -529,7 +544,7 @@ export default function ProgrammesPage() {
             </p>
             <Link
               href="/agencies"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition shrink-0"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition shrink-0"
             >
               <span>Explore Partner Agencies</span>
               <ArrowRight className="w-3.5 h-3.5" />

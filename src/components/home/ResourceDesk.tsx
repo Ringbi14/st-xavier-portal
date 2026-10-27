@@ -15,7 +15,30 @@ import {
   Layers,
   ChevronRight,
   GraduationCap,
+  Sparkles,
+  ShieldCheck,
 } from "lucide-react";
+
+export const PRIMARY_FEATURED_DOWNLOADS: DownloadItem[] = [
+  {
+    id: "primary-daily-log-sheet",
+    title: "BSW Fieldwork Daily Log Sheet (PDF)",
+    category: "Fieldwork Forms",
+    targetProgram: "BSW",
+    note: "Official daily activity log, observation recording matrix, and agency supervisor sign-off sheet for Concurrent Fieldwork (CFW).",
+    url: "/downloads/bsw-fieldwork-daily-log-sheet.pdf",
+    academicYear: "2025-2026",
+  },
+  {
+    id: "primary-practicum-guidelines",
+    title: "Practicum Guidelines & Code of Ethics (PDF)",
+    category: "General Guidelines",
+    targetProgram: "BSW",
+    note: "Mandatory fieldwork regulations, Individual (IC) and Group (GC) conference norms, evaluation rubrics, and Jesuit ethical standards.",
+    url: "/downloads/bsw-practicum-guidelines.pdf",
+    academicYear: "2025-2026",
+  },
+];
 
 export default function ResourceDesk() {
   const [items, setItems] = useState<DownloadItem[]>([]);
@@ -53,11 +76,22 @@ export default function ResourceDesk() {
           }
         }
 
+        // Ensure primary featured downloads are always present
+        const mergedData: DownloadItem[] = [...docsData];
+        PRIMARY_FEATURED_DOWNLOADS.forEach((primary) => {
+          if (!mergedData.some((d) => d.title.toLowerCase().includes(primary.title.toLowerCase().slice(0, 20)))) {
+            mergedData.unshift(primary);
+          }
+        });
+
         if (isMounted) {
-          setItems(docsData);
+          setItems(mergedData);
         }
       } catch (err) {
-        console.error("Failed to load downloads:", err);
+        console.error("Failed to load downloads, using primary documents:", err);
+        if (isMounted) {
+          setItems(PRIMARY_FEATURED_DOWNLOADS);
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -118,25 +152,83 @@ export default function ResourceDesk() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-bold uppercase tracking-wider mb-2">
-            <BookOpen className="w-3.5 h-3.5 text-teal-700" />
-            <span>Academic Document Repository</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0f2042] text-amber-300 text-[11px] font-bold uppercase tracking-wider mb-2 border border-amber-500/30">
+            <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+            <span>Academic & Fieldwork Repository</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Student Resource Desk
+          <h2 className="text-2xl sm:text-3xl font-black text-[#0f2042] tracking-tight">
+            Student Resource Desk & Fieldwork Downloads
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-            Direct access to official fieldwork log templates, course syllabi, rural camp orientation guidelines, and institutional forms.
+            Official BSW fieldwork daily log templates, practicum ordinances, course syllabi, and rural camp manuals for St. Xavier College social work students.
           </p>
         </div>
 
         <Link
           href="/resources"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 hover:text-teal-900 hover:underline shrink-0 self-start sm:self-auto py-1"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0f2042] hover:text-[#1e3a8a] hover:underline shrink-0 self-start sm:self-auto py-1"
         >
           <span>All Curriculum Files</span>
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4 text-amber-600" />
         </Link>
+      </div>
+
+      {/* PROMINENT SPOTLIGHT: Primary Fieldwork Downloads */}
+      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#0f2042] via-[#142a55] to-slate-900 border border-[#1e3a8a] text-white shadow-md space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-700/80 pb-4">
+          <div>
+            <span className="text-[10px] font-mono uppercase tracking-widest text-amber-400 font-extrabold flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>PRIMARY PRACTICUM DOWNLOADS</span>
+            </span>
+            <h3 className="text-lg sm:text-xl font-black text-white mt-0.5">
+              Essential Fieldwork Documentation
+            </h3>
+          </div>
+          <span className="text-[11px] text-slate-300 bg-white/10 px-3 py-1 rounded-full border border-white/10 self-start sm:self-auto font-medium">
+            Mandatory for All BSW Students
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {PRIMARY_FEATURED_DOWNLOADS.map((doc) => (
+            <div
+              key={doc.id}
+              className="p-5 rounded-2xl bg-slate-900/90 border border-amber-400/30 hover:border-amber-400 transition flex flex-col justify-between space-y-4 group shadow-sm"
+            >
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30 font-mono">
+                    {doc.category}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400 font-semibold">
+                    OFFICIAL PDF
+                  </span>
+                </div>
+                <h4 className="text-base font-bold text-white group-hover:text-amber-300 transition leading-snug">
+                  {doc.title}
+                </h4>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  {doc.note}
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800">
+                <a
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition shadow-xs group/btn"
+                >
+                  <Download className="w-4 h-4 group-hover/btn:translate-y-0.5 transition-transform" />
+                  <span>Download Official PDF</span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Filter & Search Bar */}

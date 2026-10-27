@@ -86,15 +86,26 @@ export default function AboutPage() {
       {/* Header Banner */}
       <section className="bg-white border-b border-slate-200 py-12">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold mb-4">
-            <Compass className="w-3.5 h-3.5" />
-            <span>Academic Identity & Philosophy</span>
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0f2042] text-amber-300 text-xs font-bold uppercase tracking-wider border border-amber-400/30">
+              <Compass className="w-3.5 h-3.5 text-amber-400" />
+              <span>College Motto: &quot;Education for Service&quot;</span>
+            </div>
+            <a
+              href="https://stxaviercollegespt.ac.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
+            >
+              <Building2 className="w-3.5 h-3.5 text-[#0f2042]" />
+              <span>St. Xavier College, Maram Khunou</span>
+            </a>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-3xl sm:text-5xl font-black text-[#0f2042] tracking-tight">
             About the Department of Social Work
           </h1>
-          <p className="text-sm sm:text-base text-slate-600 mt-2 max-w-3xl leading-relaxed">
-            St. Xavier College, Maram Khunou — Preparing professional social workers grounded in ethical discernment, scientific inquiry, and grassroots community commitment.
+          <p className="text-sm sm:text-base text-slate-600 mt-3 max-w-3xl leading-relaxed">
+            St. Xavier College, Maram Khunou (Affiliated to Manipur University) — Guided by the Jesuit ethos of academic rigor and selfless service, preparing social work professionals committed to justice, peace, and tribal community advancement in Manipur.
           </p>
         </div>
       </section>
