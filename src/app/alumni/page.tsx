@@ -19,7 +19,6 @@ import {
   Briefcase,
   Award,
   ArrowLeft,
-  Mail,
   CheckCircle2,
   Building2,
   MapPin,
@@ -477,15 +476,6 @@ export default function AlumniPage() {
                       >
                         <span>LinkedIn</span>
                         <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                    {alum.email && (
-                      <a
-                        href={`mailto:${alum.email}`}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-[#0f2042] text-slate-600 hover:text-white transition"
-                        title="Contact Alumnus"
-                      >
-                        <Mail className="w-3.5 h-3.5" />
                       </a>
                     )}
                   </div>
