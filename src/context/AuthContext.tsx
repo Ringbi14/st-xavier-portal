@@ -39,8 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const syncUserState = async (currentUser: User) => {
     try {
+      // Authoritative check: Admin access is strictly granted via refreshed Firebase Auth custom claim
       const tokenResult = await currentUser.getIdTokenResult(true);
-      const adminClaim = tokenResult.claims.admin === true;
+      const hasAdminAccess = tokenResult.claims.admin === true;
 
       const docRef = doc(db, "users", currentUser.uid);
       const docSnap = await getDoc(docRef);
@@ -49,9 +50,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         : null;
 
       setProfile(profileData);
-
-      // Admin access is granted via Firebase Auth custom claim or role in users doc
-      const hasAdminAccess = adminClaim || profileData?.role === "admin";
       setIsAdmin(hasAdminAccess);
 
       return {

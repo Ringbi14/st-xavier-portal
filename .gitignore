@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+.env
+.env*.local
 
 # vercel
 .vercel
@@ -40,5 +42,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Firebase Service Account Credentials
+# Firebase Service Account Credentials & Logs
+serviceAccountKey*.json
 serviceAccountKey.json
+firebase-debug.log*
+firebase-debug.log
+firestore-debug.log*
+firestore-debug.log
