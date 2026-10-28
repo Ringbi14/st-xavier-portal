@@ -37,26 +37,6 @@ import {
 } from "lucide-react";
 
 // Single Clean Reference BSW Alumni Profile (St. Xavier College, Maram Khunou - Est. 2019)
-// Serves as an exemplar model showing role, organization, location, higher studies, and junior advice
-const SEEDED_ALUMNI: AlumniProfile[] = [
-  {
-    id: "alumni-ref-1",
-    fullName: "K. Victor Maram",
-    batchYear: "2019-2022",
-    currentRole: "District Child Protection Officer (DCPO)",
-    organization: "Department of Social Welfare, Government of Manipur",
-    sector: "Public Sector",
-    location: "Senapati District, Manipur",
-    higherStudies: "MSW (Tata Institute of Social Sciences - TISS)",
-    quote: "The intensive concurrent fieldwork and village camps at St. Xavier taught me that social legislation only truly matters when translated to tribal grassroots reality. Cherish every supervision conference and community interaction.",
-    photoUrl: "",
-    linkedinUrl: "https://linkedin.com",
-    email: "victor.m@alumni.stxaviercollegespt.ac.in",
-    status: "approved",
-    createdAt: null,
-  },
-];
-
 const SECTORS: AlumniSector[] = [
   "All",
   "Higher Education",
@@ -120,7 +100,7 @@ function AlumniAvatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
 }
 
 export default function AlumniPage() {
-  const [alumni, setAlumni] = useState<AlumniProfile[]>(SEEDED_ALUMNI);
+  const [alumni, setAlumni] = useState<AlumniProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSector, setSelectedSector] = useState<string>("All");
   const [selectedBatch, setSelectedBatch] = useState<string>("All Batches");
@@ -144,23 +124,16 @@ export default function AlumniPage() {
               id: doc.id,
               ...(doc.data() as Omit<AlumniProfile, "id">),
             }));
-            // Dynamically show approved profiles from Firestore + reference model
-            const merged = [...list];
-            SEEDED_ALUMNI.forEach((seed) => {
-              if (!merged.some((m) => m.fullName.toLowerCase() === seed.fullName.toLowerCase())) {
-                merged.push(seed);
-              }
-            });
-            setAlumni(merged);
+            setAlumni(list);
           } else {
-            setAlumni(SEEDED_ALUMNI);
+            setAlumni([]);
           }
           setLoading(false);
         },
         (err) => {
-          console.warn("Firestore snapshot error, falling back to reference alumni:", err);
+          console.warn("Firestore snapshot error fetching alumni:", err);
           if (isMounted) {
-            setAlumni(SEEDED_ALUMNI);
+            setAlumni([]);
             setLoading(false);
           }
         }
@@ -171,9 +144,9 @@ export default function AlumniPage() {
         unsubscribe();
       };
     } catch (err) {
-      console.warn("Firestore initialization error, using reference alumni:", err);
+      console.warn("Firestore initialization error:", err);
       if (isMounted) {
-        setAlumni(SEEDED_ALUMNI);
+        setAlumni([]);
         setLoading(false);
       }
     }
@@ -393,15 +366,32 @@ export default function AlumniPage() {
         ) : filteredAlumni.length === 0 ? (
           <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-xs max-w-lg mx-auto space-y-3">
             <Users className="w-10 h-10 text-slate-300 mx-auto" />
-            <h3 className="text-sm font-bold text-slate-900">No alumni profiles found</h3>
+            <h3 className="text-sm sm:text-base font-bold text-slate-900">
+              {alumni.length === 0
+                ? "No alumni profiles published yet for this cohort."
+                : "No alumni profiles found"}
+            </h3>
             <p className="text-xs text-slate-500">
-              No verified profiles match the selected filters. Try choosing &quot;All&quot; or submitting a new profile update.
+              {alumni.length === 0 ? (
+                <>
+                  Are you an SXC Social Work graduate?{" "}
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="text-[#0f2042] font-bold underline hover:text-amber-600 cursor-pointer"
+                  >
+                    Submit your career update
+                  </button>
+                  .
+                </>
+              ) : (
+                "No verified profiles match the selected filters. Try choosing \"All\" or submitting a new profile update."
+              )}
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0f2042] text-white text-xs font-bold"
+              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0f2042] text-white text-xs font-bold hover:bg-[#142a55] transition cursor-pointer"
             >
-              <PlusCircle className="w-3.5 h-3.5" />
+              <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
               <span>Submit Profile Update</span>
             </button>
           </div>
@@ -609,8 +599,16 @@ function AlumniSubmissionModal({
       return;
     }
 
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "ixvakf7c";
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "sxc_uploads";
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      const errMsg = "Cloudinary environment variables (NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET) are required for photo upload.";
+      console.error(errMsg);
+      setUploadError(errMsg);
+      alert(errMsg);
+      return;
+    }
 
     try {
       setIsUploading(true);
@@ -682,7 +680,7 @@ function AlumniSubmissionModal({
       onSubmitted();
     } catch (err: any) {
       console.error("Failed to submit alumni profile:", err);
-      alert("Submission failed. Please check your internet connection.");
+      alert(`Submission failed: ${err?.message || "Please check your network and submission fields."}`);
     } finally {
       setIsSubmitting(false);
     }

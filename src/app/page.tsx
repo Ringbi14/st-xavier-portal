@@ -38,70 +38,6 @@ interface HighlightItem {
   imageUrl?: string;
 }
 
-// Fallback notices for instant display & reliability
-const FALLBACK_NOTICES: NoticeItem[] = [
-  {
-    id: "not-fb-1",
-    title: "Concurrent Fieldwork Orientation for Semester III & V Practicum",
-    category: "Fieldwork",
-    date: "2026-10-18",
-    description:
-      "All students enrolled in BSW Semesters III & V must attend the mandatory concurrent fieldwork orientation scheduled for Friday in the Department Seminar Hall at 10:30 AM.\n\nPlacement rosters, faculty supervisor allocations, and weekly conference schedules will be distributed. Process record templates and field attendance log sheets must be collected from the department office.",
-  },
-  {
-    id: "not-fb-2",
-    title: "Annual Rural Educational Camp 2026: Participatory Rural Appraisal Schedule",
-    category: "Rural Camp",
-    date: "2026-10-12",
-    description:
-      "The Department of Social Work announces the 10-day Annual Rural Educational Camp to be conducted in selected tribal villages of Senapati District, Manipur.\n\nPreparatory workshops on PRA mapping, focus group methodology, and community cultural awareness rallies commence next Monday. Camp fees and medical consent forms must be submitted to the camp coordinator.",
-  },
-  {
-    id: "not-fb-3",
-    title: "End-Semester Practicum Journal Viva Voce & Submission Deadlines",
-    category: "Exam",
-    date: "2026-10-05",
-    description:
-      "All BSW students are notified that fieldwork journals, casework process records, and agency supervisor evaluation sheets must be bound and submitted by 4:00 PM on the designated date.\n\nExternal viva-voce examinations will be conducted in the presence of university-appointed examiners. Late submissions will result in credit deductions.",
-  },
-];
-
-// Fallback fieldwork & camp highlights
-const FALLBACK_HIGHLIGHTS: HighlightItem[] = [
-  {
-    id: "hl-fb-1",
-    title: "Annual Rural Educational Camp: PRA Assessment",
-    category: "Rural Camp",
-    location: "Senapati District Villages",
-    year: "2025-2026",
-    imageUrl: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "hl-fb-2",
-    title: "Community Awareness & Health Literacy Campaign",
-    category: "Community Awareness",
-    location: "Maram Khunou",
-    year: "2025-2026",
-    imageUrl: "https://images.unsplash.com/photo-1577495508048-b635879837f1?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "hl-fb-3",
-    title: "District Child Protection Unit & Healthcare Placement",
-    category: "Agency Visit",
-    location: "Senapati District Hospital",
-    year: "2025-2026",
-    imageUrl: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    id: "hl-fb-4",
-    title: "Participatory Resource Mapping & Village Focus Group",
-    category: "Rural Camp",
-    location: "Karong Community Center",
-    year: "2025-2026",
-    imageUrl: "https://images.unsplash.com/photo-1531206715517-5c0ba140b2b8?auto=format&fit=crop&q=80&w=800",
-  },
-];
-
 function HomeHighlightImage({ imageUrl, title }: { imageUrl?: string; title: string }) {
   const [hasError, setHasError] = useState(false);
   const cleanUrl = imageUrl?.trim();
@@ -131,9 +67,9 @@ function HomeHighlightImage({ imageUrl, title }: { imageUrl?: string; title: str
 }
 
 export default function HomePage() {
-  const [notices, setNotices] = useState<NoticeItem[]>(FALLBACK_NOTICES);
+  const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [activeNotice, setActiveNotice] = useState<NoticeItem | null>(null);
-  const [highlights, setHighlights] = useState<HighlightItem[]>(FALLBACK_HIGHLIGHTS);
+  const [highlights, setHighlights] = useState<HighlightItem[]>([]);
 
   useEffect(() => {
     // Fetch 3 most recent bulletins from 'notices'
@@ -143,7 +79,7 @@ export default function HomePage() {
         let docsData: NoticeItem[] = [];
 
         try {
-          const qNotices = query(colRef, orderBy("date", "desc"), limit(3));
+          const qNotices = query(colRef, orderBy("publishedAt", "desc"), limit(3));
           const snap = await getDocs(qNotices);
           if (!snap.empty) {
             docsData = snap.docs.map((doc) => {
@@ -152,10 +88,10 @@ export default function HomePage() {
                 id: doc.id,
                 title: data.title || "Untitled Circular",
                 category: data.category || "General",
-                date: data.date || "",
-                description: data.description || data.shortDesc || "",
                 body: data.body || data.description || "",
-                attachmentUrl: data.attachmentUrl || data.fileUrl || "",
+                fileUrl: data.fileUrl || data.attachmentUrl || "",
+                publishedAt: data.publishedAt || data.date || "",
+                author: data.author || "Department of Social Work, SXC Maram",
               };
             });
           }
@@ -169,10 +105,10 @@ export default function HomePage() {
                 id: doc.id,
                 title: data.title || "Untitled Circular",
                 category: data.category || "General",
-                date: data.date || "",
-                description: data.description || data.shortDesc || "",
                 body: data.body || data.description || "",
-                attachmentUrl: data.attachmentUrl || data.fileUrl || "",
+                fileUrl: data.fileUrl || data.attachmentUrl || "",
+                publishedAt: data.publishedAt || data.date || "",
+                author: data.author || "Department of Social Work, SXC Maram",
               };
             });
           }
@@ -180,14 +116,19 @@ export default function HomePage() {
 
         if (docsData.length > 0) {
           docsData.sort((a, b) => {
-            const timeA = a.date ? new Date(a.date).getTime() : 0;
-            const timeB = b.date ? new Date(b.date).getTime() : 0;
+            const rawA = a.publishedAt || a.date;
+            const rawB = b.publishedAt || b.date;
+            const timeA = rawA ? new Date(rawA?.seconds ? rawA.seconds * 1000 : rawA).getTime() : 0;
+            const timeB = rawB ? new Date(rawB?.seconds ? rawB.seconds * 1000 : rawB).getTime() : 0;
             return timeB - timeA;
           });
           setNotices(docsData.slice(0, 3));
+        } else {
+          setNotices([]);
         }
       } catch (err) {
-        console.warn("Using fallback notices:", err);
+        console.warn("Failed to fetch notices:", err);
+        setNotices([]);
       }
     };
 
@@ -205,13 +146,16 @@ export default function HomePage() {
               category: data.category || "Fieldwork",
               location: data.location || "Senapati District",
               year: data.year || "2025-2026",
-              imageUrl: (data.photoUrl || data.imageUrl || data.publicUrl || FALLBACK_HIGHLIGHTS[0].imageUrl).trim(),
+              imageUrl: (data.photoUrl || data.imageUrl || data.publicUrl || "").trim(),
             };
           });
           setHighlights(items);
+        } else {
+          setHighlights([]);
         }
       } catch (err) {
-        console.warn("Using fallback gallery highlights:", err);
+        console.warn("Failed to fetch gallery highlights:", err);
+        setHighlights([]);
       }
     };
 
@@ -320,40 +264,49 @@ export default function HomePage() {
         </div>
 
         {/* 3-Notice Cards Grid (Click to open Detail Modal directly) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {notices.map((notice) => (
-            <div
-              key={notice.id}
-              onClick={() => setActiveNotice(notice)}
-              className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 hover:shadow-md transition flex flex-col justify-between group shadow-xs cursor-pointer"
-            >
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <span
-                    className={`inline-block text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border ${getNoticeCategoryBadge(
-                      notice.category
-                    )}`}
-                  >
-                    {notice.category}
-                  </span>
-                  <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
-                    <Calendar className="w-3 h-3 text-teal-700" />
-                    <span>{formatNoticeDate(notice.date)}</span>
+        {notices.length === 0 ? (
+          <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-xs">
+            <Bell className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-xs sm:text-sm text-slate-600 font-medium">
+              No active notices published at this time.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {notices.map((notice) => (
+              <div
+                key={notice.id}
+                onClick={() => setActiveNotice(notice)}
+                className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 hover:shadow-md transition flex flex-col justify-between group shadow-xs cursor-pointer"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span
+                      className={`inline-block text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border ${getNoticeCategoryBadge(
+                        notice.category
+                      )}`}
+                    >
+                      {notice.category}
+                    </span>
+                    <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                      <Calendar className="w-3 h-3 text-teal-700" />
+                      <span>{formatNoticeDate(notice.publishedAt || notice.date)}</span>
+                    </div>
                   </div>
+
+                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-teal-800 transition leading-snug line-clamp-3">
+                    {notice.title}
+                  </h3>
                 </div>
 
-                <h3 className="text-sm font-bold text-slate-900 group-hover:text-teal-800 transition leading-snug line-clamp-3">
-                  {notice.title}
-                </h3>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500 group-hover:text-teal-700">
+                  <span>Read Circular</span>
+                  <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                </div>
               </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500 group-hover:text-teal-700">
-                <span>Read Circular</span>
-                <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <div className="mt-4 text-center sm:hidden">
           <Link
@@ -540,46 +493,55 @@ export default function HomePage() {
         </div>
 
         {/* Curated 4-Card Photo Preview */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {highlights.map((item) => (
-            <Link
-              key={item.id}
-              href="/gallery"
-              className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md hover:border-teal-400 transition flex flex-col"
-            >
-              {/* Image Container */}
-              <div className="relative aspect-4/3 w-full bg-slate-100 overflow-hidden">
-                <HomeHighlightImage imageUrl={item.imageUrl} title={item.title} />
-                <div className="absolute top-2.5 left-2.5">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-black/60 backdrop-blur-xs text-white border border-white/20">
-                    {item.category}
-                  </span>
+        {highlights.length === 0 ? (
+          <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-xs">
+            <Camera className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-xs sm:text-sm text-slate-500">
+              No fieldwork highlights published yet.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {highlights.map((item) => (
+              <Link
+                key={item.id}
+                href="/gallery"
+                className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md hover:border-teal-400 transition flex flex-col"
+              >
+                {/* Image Container */}
+                <div className="relative aspect-4/3 w-full bg-slate-100 overflow-hidden">
+                  <HomeHighlightImage imageUrl={item.imageUrl} title={item.title} />
+                  <div className="absolute top-2.5 left-2.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-black/60 backdrop-blur-xs text-white border border-white/20">
+                      {item.category}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Card Meta */}
-              <div className="p-4 flex-1 flex flex-col justify-between">
-                <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-teal-800 transition line-clamp-2 leading-snug">
-                    {item.title}
-                  </h4>
-                  {item.location && (
-                    <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-2">
-                      <MapPin className="w-3 h-3 text-teal-600 shrink-0" />
-                      <span className="truncate">{item.location}</span>
+                {/* Card Meta */}
+                <div className="p-4 flex-1 flex flex-col justify-between">
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-teal-800 transition line-clamp-2 leading-snug">
+                      {item.title}
+                    </h4>
+                    {item.location && (
+                      <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-2">
+                        <MapPin className="w-3 h-3 text-teal-600 shrink-0" />
+                        <span className="truncate">{item.location}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {item.year && (
+                    <div className="mt-3 pt-2 border-t border-slate-100 text-[10px] font-mono font-medium text-slate-400">
+                      Batch: {item.year}
                     </div>
                   )}
                 </div>
-
-                {item.year && (
-                  <div className="mt-3 pt-2 border-t border-slate-100 text-[10px] font-mono font-medium text-slate-400">
-                    Batch: {item.year}
-                  </div>
-                )}
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
 
         {/* Bottom Full Gallery CTA Button */}
         <div className="mt-8 text-center">

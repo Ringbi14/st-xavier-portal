@@ -21,45 +21,10 @@ import NoticeModal, {
   getNoticeCategoryBadge,
 } from "@/components/notices/NoticeModal";
 
-const DEFAULT_NOTICES: NoticeItem[] = [
-  {
-    id: "not-fb-1",
-    title: "Concurrent Fieldwork Orientation for Semester III & V Practicum",
-    category: "Fieldwork",
-    date: "2026-10-18",
-    description:
-      "All students enrolled in BSW Semesters III & V must attend the mandatory concurrent fieldwork orientation scheduled for Friday in the Department Seminar Hall at 10:30 AM.\n\nPlacement rosters, faculty supervisor allocations, and weekly conference schedules will be distributed. Process record templates and field attendance log sheets must be collected from the department office.",
-  },
-  {
-    id: "not-fb-2",
-    title: "Annual Rural Educational Camp 2026: Participatory Rural Appraisal Schedule",
-    category: "Rural Camp",
-    date: "2026-10-12",
-    description:
-      "The Department of Social Work announces the 10-day Annual Rural Educational Camp to be conducted in selected tribal villages of Senapati District, Manipur.\n\nPreparatory workshops on PRA mapping, focus group methodology, and community cultural awareness rallies commence next Monday. Camp fees and medical consent forms must be submitted to the camp coordinator.",
-  },
-  {
-    id: "not-fb-3",
-    title: "End-Semester Practicum Journal Viva Voce & Submission Deadlines",
-    category: "Exam",
-    date: "2026-10-05",
-    description:
-      "All BSW students are notified that fieldwork journals, casework process records, and agency supervisor evaluation sheets must be bound and submitted by 4:00 PM on the designated date.\n\nExternal viva-voce examinations will be conducted in the presence of university-appointed examiners. Late submissions will result in credit deductions.",
-  },
-  {
-    id: "not-fb-4",
-    title: "Guest Lecture on Regional Civil Society Action and Tribal Rights",
-    category: "General",
-    date: "2026-09-28",
-    description:
-      "The Department of Social Work cordially invites all students and faculty to a special guest lecture session on 'Grassroots Human Rights Advocacy in the Hill Areas of Manipur' delivered by visiting civil society practitioners in the College Auditorium.",
-  },
-];
-
 const CATEGORIES = ["All", "Fieldwork", "Exam", "Rural Camp", "General"] as const;
 
 export default function NoticesPage() {
-  const [notices, setNotices] = useState<NoticeItem[]>(DEFAULT_NOTICES);
+  const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -74,9 +39,9 @@ export default function NoticesPage() {
         const colRef = collection(db, "notices");
         let docsData: NoticeItem[] = [];
 
-        // Safe query attempt: Try ordered query by date descending
+        // Safe query attempt: Try ordered query by publishedAt descending, then date
         try {
-          const q = query(colRef, orderBy("date", "desc"), limit(40));
+          const q = query(colRef, orderBy("publishedAt", "desc"), limit(40));
           const snap = await getDocs(q);
           if (!snap.empty) {
             docsData = snap.docs.map((doc) => {
@@ -85,10 +50,10 @@ export default function NoticesPage() {
                 id: doc.id,
                 title: data.title || "Untitled Notice",
                 category: data.category || "General",
-                date: data.date || "",
-                description: data.description || data.shortDesc || "",
                 body: data.body || data.description || "",
-                attachmentUrl: data.attachmentUrl || data.fileUrl || "",
+                fileUrl: data.fileUrl || data.attachmentUrl || "",
+                publishedAt: data.publishedAt || data.date || "",
+                author: data.author || "Department of Social Work, SXC Maram",
               };
             });
           }
@@ -103,29 +68,32 @@ export default function NoticesPage() {
                 id: doc.id,
                 title: data.title || "Untitled Notice",
                 category: data.category || "General",
-                date: data.date || "",
-                description: data.description || data.shortDesc || "",
                 body: data.body || data.description || "",
-                attachmentUrl: data.attachmentUrl || data.fileUrl || "",
+                fileUrl: data.fileUrl || data.attachmentUrl || "",
+                publishedAt: data.publishedAt || data.date || "",
+                author: data.author || "Department of Social Work, SXC Maram",
               };
             });
           }
         }
 
-        if (docsData.length > 0) {
-          // Strictly sort in memory descending by date
-          docsData.sort((a, b) => {
-            const timeA = a.date ? new Date(a.date).getTime() : 0;
-            const timeB = b.date ? new Date(b.date).getTime() : 0;
-            return timeB - timeA;
-          });
+        // Strictly sort in memory descending by publishedAt / date
+        docsData.sort((a, b) => {
+          const rawA = a.publishedAt || a.date;
+          const rawB = b.publishedAt || b.date;
+          const timeA = rawA ? new Date(rawA?.seconds ? rawA.seconds * 1000 : rawA).getTime() : 0;
+          const timeB = rawB ? new Date(rawB?.seconds ? rawB.seconds * 1000 : rawB).getTime() : 0;
+          return timeB - timeA;
+        });
 
-          if (isMounted) {
-            setNotices(docsData);
-          }
+        if (isMounted) {
+          setNotices(docsData);
         }
       } catch (err) {
-        console.warn("Using fallback notices due to fetch error:", err);
+        console.warn("Failed to fetch notices:", err);
+        if (isMounted) {
+          setNotices([]);
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -148,7 +116,6 @@ export default function NoticesPage() {
     const matchesSearch =
       searchTerm === "" ||
       notice.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      notice.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       notice.body?.toLowerCase().includes(searchTerm.toLowerCase());
 
     return matchesCategory && matchesSearch;
@@ -271,7 +238,7 @@ export default function NoticesPage() {
 
                     <div className="flex items-center gap-1 text-xs text-slate-400 font-mono">
                       <Calendar className="w-3.5 h-3.5 text-teal-700" />
-                      <span>{formatNoticeDate(notice.date)}</span>
+                      <span>{formatNoticeDate(notice.publishedAt || notice.date)}</span>
                     </div>
                   </div>
 
@@ -280,10 +247,10 @@ export default function NoticesPage() {
                     {notice.title}
                   </h3>
 
-                  {/* Optional short preview if needed */}
-                  {notice.description && (
+                  {/* Optional short preview */}
+                  {notice.body && (
                     <p className="text-xs text-slate-500 line-clamp-1">
-                      {notice.description}
+                      {notice.body}
                     </p>
                   )}
                 </div>
@@ -305,21 +272,27 @@ export default function NoticesPage() {
               <Bell className="w-6 h-6" />
             </div>
             <h3 className="text-base font-bold text-slate-900">
-              No circulars currently posted under this category
+              {notices.length === 0
+                ? "No active notices published at this time."
+                : "No circulars currently posted under this category"}
             </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              There are no announcements matching your selected category or search keyword.
+              {notices.length === 0
+                ? "Official department announcements and academic circulars will be displayed here when released."
+                : "There are no announcements matching your selected category or search keyword."}
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedCategory("All");
-                setSearchTerm("");
-              }}
-              className="mt-4 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition cursor-pointer"
-            >
-              Reset Filters & View All
-            </button>
+            {notices.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategory("All");
+                  setSearchTerm("");
+                }}
+                className="mt-4 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition cursor-pointer"
+              >
+                Reset Filters & View All
+              </button>
+            )}
           </div>
         )}
 

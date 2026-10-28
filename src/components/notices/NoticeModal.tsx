@@ -15,12 +15,13 @@ import {
 export interface NoticeItem {
   id: string;
   title: string;
-  category: "Fieldwork" | "Exam" | "Rural Camp" | "General" | string;
-  date: string;
-  description?: string;
-  body?: string;
-  attachmentUrl?: string;
+  body: string;
   fileUrl?: string;
+  category: "Fieldwork" | "Exam" | "Rural Camp" | "General" | string;
+  publishedAt?: any;
+  updatedAt?: any;
+  author?: string;
+  date?: string; // Optional backwards compatibility
 }
 
 interface NoticeModalProps {
@@ -28,10 +29,25 @@ interface NoticeModalProps {
   onClose: () => void;
 }
 
-export function formatNoticeDate(rawDate?: string): string {
+export function formatNoticeDate(rawDate?: any): string {
   if (!rawDate) return "Official Notice";
   try {
-    const parts = rawDate.split("-");
+    if (typeof rawDate === "object" && typeof rawDate?.toDate === "function") {
+      return rawDate.toDate().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+    if (typeof rawDate === "object" && typeof rawDate?.seconds === "number") {
+      return new Date(rawDate.seconds * 1000).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+    const str = String(rawDate);
+    const parts = str.split("-");
     if (parts.length === 3) {
       const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
       if (!isNaN(d.getTime())) {
@@ -42,7 +58,7 @@ export function formatNoticeDate(rawDate?: string): string {
         });
       }
     }
-    const parsed = new Date(rawDate);
+    const parsed = new Date(str);
     if (!isNaN(parsed.getTime())) {
       return parsed.toLocaleDateString("en-US", {
         month: "long",
@@ -53,7 +69,7 @@ export function formatNoticeDate(rawDate?: string): string {
   } catch {
     // fallback
   }
-  return rawDate;
+  return typeof rawDate === "string" ? rawDate : "Official Notice";
 }
 
 export function getNoticeCategoryBadge(category: string) {
@@ -93,8 +109,10 @@ export default function NoticeModal({ notice, onClose }: NoticeModalProps) {
 
   if (!notice) return null;
 
-  const attachment = notice.attachmentUrl || notice.fileUrl;
-  const contentText = notice.body || notice.description || "No full description provided for this circular.";
+  const attachment = notice.fileUrl;
+  const contentText = notice.body || "No full description provided for this circular.";
+  const displayDate = notice.publishedAt || notice.date;
+  const issuingAuthor = notice.author || "Department of Social Work, SXC Maram";
 
   return (
     <div
@@ -131,14 +149,14 @@ export default function NoticeModal({ notice, onClose }: NoticeModalProps) {
 
             <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
               <Calendar className="w-3.5 h-3.5 text-teal-700" />
-              <span>{formatNoticeDate(notice.date)}</span>
+              <span>{formatNoticeDate(displayDate)}</span>
             </div>
           </div>
 
           {/* Department Issuing Authority */}
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-900 bg-teal-50/80 px-2.5 py-1 rounded-md border border-teal-200">
             <Building2 className="w-3.5 h-3.5 text-teal-700" />
-            <span>Department of Social Work, SXC Maram</span>
+            <span>{issuingAuthor}</span>
           </div>
 
           {/* Title */}

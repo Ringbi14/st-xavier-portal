@@ -71,13 +71,13 @@ export type NoticeCategory = "Fieldwork" | "Exam" | "Rural Camp" | "General";
 export interface NoticeDocument {
   id: string;
   title: string;
-  date: string;
+  body: string;
+  fileUrl?: string;
   category: NoticeCategory | string;
-  description: string;
-  body?: string;
-  attachmentUrl?: string;
-  createdAt?: any;
+  publishedAt: any;
   updatedAt?: any;
+  author?: string;
+  date?: string; // Kept as optional for backwards compatibility
 }
 
 export type DownloadCategory = "Fieldwork Forms" | "Syllabus" | "Camp Manuals" | "General Guidelines";

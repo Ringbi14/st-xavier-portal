@@ -207,39 +207,52 @@ function TabButton({
 function NoticesTab() {
   const [notices, setNotices] = useState<any[]>([]);
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [publishedAt, setPublishedAt] = useState(new Date().toISOString().split("T")[0]);
   const [category, setCategory] = useState("Fieldwork");
-  const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [fileUrl, setFileUrl] = useState("");
   const [body, setBody] = useState("");
+  const [author, setAuthor] = useState("Department of Social Work, SXC Maram");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, "notices"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setNotices(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
+    const q = query(collection(db, "notices"), orderBy("publishedAt", "desc"));
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        setNotices(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      },
+      (err) => {
+        console.warn("Ordered notices fetch fell back:", err);
+        const fallbackUnsub = onSnapshot(collection(db, "notices"), (snap) => {
+          setNotices(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        });
+        return () => fallbackUnsub();
+      }
+    );
     return () => unsub();
   }, []);
 
   const openCreateModal = () => {
     setEditingId(null);
     setTitle("");
-    setDate(new Date().toISOString().split("T")[0]);
+    setPublishedAt(new Date().toISOString().split("T")[0]);
     setCategory("Fieldwork");
-    setAttachmentUrl("");
+    setFileUrl("");
     setBody("");
+    setAuthor("Department of Social Work, SXC Maram");
     setIsModalOpen(true);
   };
 
   const openEditModal = (item: any) => {
     setEditingId(item.id);
     setTitle(item.title || "");
-    setDate(item.date || new Date().toISOString().split("T")[0]);
+    setPublishedAt(item.publishedAt || item.date || new Date().toISOString().split("T")[0]);
     setCategory(item.category || "General");
-    setAttachmentUrl(item.attachmentUrl || item.fileUrl || "");
+    setFileUrl(item.fileUrl || item.attachmentUrl || "");
     setBody(item.body || item.description || "");
+    setAuthor(item.author || "Department of Social Work, SXC Maram");
     setIsModalOpen(true);
   };
 
@@ -252,33 +265,31 @@ function NoticesTab() {
     setIsSubmitting(true);
 
     try {
-      const payload = {
+      const payload: any = {
         title: title.trim(),
-        date: date || new Date().toISOString().split("T")[0],
+        publishedAt: publishedAt || new Date().toISOString().split("T")[0],
         category,
-        attachmentUrl: attachmentUrl.trim(),
-        fileUrl: attachmentUrl.trim(),
-        description: body.trim(),
         body: body.trim(),
+        author: author.trim() || "Department of Social Work, SXC Maram",
+        updatedAt: serverTimestamp(),
       };
+      if (fileUrl.trim()) {
+        payload.fileUrl = fileUrl.trim();
+      }
 
       if (editingId) {
-        await updateDoc(doc(db, "notices", editingId), {
-          ...payload,
-          updatedAt: serverTimestamp(),
-        });
+        await updateDoc(doc(db, "notices", editingId), payload);
       } else {
         await addDoc(collection(db, "notices"), {
           ...payload,
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
         });
       }
 
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Notice save failed:", err);
-      alert("Failed to save circular. Please verify permissions.");
+      alert(`Failed to save circular: ${err?.message || "Please verify permissions."}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -288,8 +299,9 @@ function NoticesTab() {
     if (!confirm("Are you sure you want to delete this circular notice?")) return;
     try {
       await deleteDoc(doc(db, "notices", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Notice delete failed:", err);
+      alert(`Failed to delete circular: ${err?.message || err}`);
     }
   };
 
@@ -345,7 +357,7 @@ function NoticesTab() {
                   </td>
 
                   <td className="py-3 px-4 align-top font-mono text-slate-600 whitespace-nowrap">
-                    {n.date}
+                    {n.publishedAt || n.date}
                   </td>
 
                   <td className="py-3 px-4 align-top max-w-sm">
@@ -355,9 +367,9 @@ function NoticesTab() {
                   </td>
 
                   <td className="py-3 px-4 align-top">
-                    {n.attachmentUrl || n.fileUrl ? (
+                    {n.fileUrl || n.attachmentUrl ? (
                       <a
-                        href={n.attachmentUrl || n.fileUrl}
+                        href={n.fileUrl || n.attachmentUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-teal-800 hover:underline font-bold"
@@ -453,11 +465,24 @@ function NoticesTab() {
                   <input
                     type="date"
                     required
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
+                    value={publishedAt}
+                    onChange={(e) => setPublishedAt(e.target.value)}
                     className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Author / Issuing Desk
+                </label>
+                <input
+                  type="text"
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  placeholder="e.g. Department of Social Work, SXC Maram"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
+                />
               </div>
 
               <div>
@@ -466,8 +491,8 @@ function NoticesTab() {
                 </label>
                 <input
                   type="url"
-                  value={attachmentUrl}
-                  onChange={(e) => setAttachmentUrl(e.target.value)}
+                  value={fileUrl}
+                  onChange={(e) => setFileUrl(e.target.value)}
                   placeholder="https://..."
                   className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
                 />
@@ -593,8 +618,9 @@ function ResourcesTab() {
     if (!confirm("Are you sure you want to delete this resource document?")) return;
     try {
       await deleteDoc(doc(db, "downloads", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Resource delete failed:", err);
+      alert(`Failed to delete resource: ${err?.message || err}`);
     }
   };
 
@@ -825,8 +851,16 @@ function CloudinaryUploadField({
       return;
     }
 
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "ixvakf7c";
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "sxc_uploads";
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      const errMsg = "Cloudinary environment variables (NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET) are required for image upload.";
+      console.error(errMsg);
+      setUploadError(errMsg);
+      alert(errMsg);
+      return;
+    }
 
     try {
       setIsUploading(true);
@@ -1130,8 +1164,9 @@ function ShowcaseTab() {
     if (!confirm("Are you sure you want to delete this showcase entry?")) return;
     try {
       await deleteDoc(doc(db, "gallery", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Showcase delete failed:", err);
+      alert(`Failed to delete showcase entry: ${err?.message || err}`);
     }
   };
 
@@ -1430,8 +1465,9 @@ function AgenciesTab() {
     if (!confirm("Are you sure you want to delete this placement partner organization?")) return;
     try {
       await deleteDoc(doc(db, "agencies", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Agency delete failed:", err);
+      alert(`Failed to delete partner agency: ${err?.message || err}`);
     }
   };
 
@@ -1782,8 +1818,9 @@ function FacultyTab() {
     if (!confirm("Are you sure you want to delete this profile?")) return;
     try {
       await deleteDoc(doc(db, "faculty", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Faculty delete failed:", err);
+      alert(`Failed to delete faculty profile: ${err?.message || err}`);
     }
   };
 
@@ -2195,9 +2232,9 @@ function AlumniTab() {
         status: "approved",
         updatedAt: serverTimestamp(),
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Approve failed:", err);
-      alert(`Failed to approve profile for ${name}.`);
+      alert(`Failed to approve profile for ${name}: ${err?.message || err}`);
     }
   };
 
@@ -2205,9 +2242,9 @@ function AlumniTab() {
     if (!confirm(`Are you sure you want to permanently delete profile for "${name}"?`)) return;
     try {
       await deleteDoc(doc(db, "alumni", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Delete failed:", err);
-      alert("Failed to delete alumni profile.");
+      alert(`Failed to delete alumni profile: ${err?.message || err}`);
     }
   };
 
@@ -2254,9 +2291,9 @@ function AlumniTab() {
       }
 
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save alumni profile:", err);
-      alert("Failed to save alumni profile.");
+      alert(`Failed to save alumni profile: ${err?.message || err}`);
     } finally {
       setIsSubmitting(false);
     }

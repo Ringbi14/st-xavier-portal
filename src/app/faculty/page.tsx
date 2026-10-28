@@ -73,53 +73,6 @@ const COLLEGE_LEADERSHIP: LeadershipMember[] = [
   },
 ];
 
-const DEFAULT_FACULTY: FacultyMember[] = [
-  {
-    id: "fac-1",
-    name: "Dr. Rosemary V.",
-    designation: "Assistant Professor & Head of Department",
-    qualification: "MSW, Ph.D. (Social Work), UGC-NET",
-    specialization: "Community Development & Tribal Action",
-    supervisoryRole: "Fieldwork Practicum Director & Academic Mentor",
-    email: "hod.socialwork@stxaviercollegespt.ac.in",
-    officeExtension: "Dept Block A, Room 102",
-    bio: "Guiding departmental academic planning, community immersion camps, and institutional research collaborations across Senapati, Manipur.",
-  },
-  {
-    id: "fac-2",
-    name: "Prof. L. David",
-    designation: "Assistant Professor & Fieldwork Coordinator",
-    qualification: "MSW (Medical & Psychiatric Social Work), UGC-NET",
-    specialization: "Medical & Psychiatric Social Work",
-    supervisoryRole: "Concurrent Fieldwork Supervisor (Hospital & Healthcare Placements)",
-    email: "fieldwork@stxaviercollegespt.ac.in",
-    officeExtension: "Dept Block A, Room 104",
-    bio: "Coordinating concurrent agency placements, clinical supervision, and student evaluation matrices with partner health centers.",
-  },
-  {
-    id: "fac-3",
-    name: "Ms. Philomena K.",
-    designation: "Assistant Professor & Rural Camp Director",
-    qualification: "MSW (Human Resource Management), UGC-NET",
-    specialization: "Child & Youth Welfare & NGO Governance",
-    supervisoryRole: "Annual Rural Educational Camp Coordinator & PRA Mentor",
-    email: "socialwork@stxaviercollegespt.ac.in",
-    officeExtension: "Dept Block B, Room 201",
-    bio: "Directing 10-day rural educational immersion camps, Participatory Rural Appraisals, and youth awareness initiatives.",
-  },
-  {
-    id: "fac-4",
-    name: "Mr. K. Anthony",
-    designation: "Assistant Professor & Practicum Advisor",
-    qualification: "MSW, UGC-NET, PGDHRM",
-    specialization: "Social Policy & Human Rights Advocacy",
-    supervisoryRole: "Casework & Group Work Process Recording Supervisor",
-    email: "anthony.sw@stxaviercollegespt.ac.in",
-    officeExtension: "Dept Block A, Room 105",
-    bio: "Supervising individual process recordings, ethical reflections, and social research projects.",
-  },
-];
-
 // Helper to extract clean initials from name
 function getInitials(name: string): string {
   if (!name) return "SX";
@@ -189,7 +142,7 @@ function FacultyAvatar({
 }
 
 export default function FacultyPage() {
-  const [facultyList, setFacultyList] = useState<FacultyMember[]>(DEFAULT_FACULTY);
+  const [facultyList, setFacultyList] = useState<FacultyMember[]>([]);
   const [leadershipList, setLeadershipList] = useState<LeadershipMember[]>(COLLEGE_LEADERSHIP);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -250,10 +203,17 @@ export default function FacultyPage() {
                 bio: d.bio,
               }))
             );
+          } else {
+            setFacultyList([]);
           }
+        } else if (isMounted) {
+          setFacultyList([]);
         }
       } catch (err) {
-        console.warn("Could not fetch faculty from Firestore, using default directory:", err);
+        console.warn("Could not fetch faculty from Firestore:", err);
+        if (isMounted) {
+          setFacultyList([]);
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -510,21 +470,29 @@ export default function FacultyPage() {
             </div>
           )}
 
-          {/* Empty Search State */}
+          {/* Empty Search / Directory State */}
           {!loading && filteredFaculty.length === 0 && (
             <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-xs">
               <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-slate-900">No faculty members found</h3>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                {facultyList.length === 0
+                  ? "Faculty directory updating for the current academic session."
+                  : "No faculty members found"}
+              </h3>
               <p className="text-xs text-slate-500 mt-1">
-                No profiles matched your search term &quot;{searchTerm}&quot;.
+                {facultyList.length === 0
+                  ? "Department faculty and fieldwork supervisor profiles will appear here once finalized."
+                  : `No profiles matched your search term "${searchTerm}".`}
               </p>
-              <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                className="mt-4 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition cursor-pointer"
-              >
-                Clear Search
-              </button>
+              {facultyList.length > 0 && searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="mt-4 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold transition cursor-pointer"
+                >
+                  Clear Search
+                </button>
+              )}
             </div>
           )}
 

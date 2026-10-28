@@ -29,32 +29,50 @@ export default function NoticeBoard() {
         const noticesRef = collection(db, "notices");
         let docsData: NoticeDocument[] = [];
 
-        // Safe query attempt: Try ordered query by date descending
+        // Safe query attempt: Try ordered query by publishedAt descending, then date
         try {
-          const q = query(noticesRef, orderBy("date", "desc"), limit(6));
+          const q = query(noticesRef, orderBy("publishedAt", "desc"), limit(6));
           const snap = await getDocs(q);
           if (!snap.empty) {
-            docsData = snap.docs.map((d) => ({
-              id: d.id,
-              ...d.data(),
-            })) as NoticeDocument[];
+            docsData = snap.docs.map((d) => {
+              const data = d.data();
+              return {
+                id: d.id,
+                title: data.title || "Untitled Circular",
+                body: data.body || data.description || "",
+                fileUrl: data.fileUrl || data.attachmentUrl || "",
+                category: data.category || "General",
+                publishedAt: data.publishedAt || data.date || "",
+                author: data.author || "Department of Social Work, SXC Maram",
+              };
+            }) as NoticeDocument[];
           }
         } catch (queryErr) {
           console.warn("Ordered notices query fell back to base query:", queryErr);
           // Fallback to plain collection fetch
           const fallbackSnap = await getDocs(query(noticesRef, limit(10)));
           if (!fallbackSnap.empty) {
-            docsData = fallbackSnap.docs.map((d) => ({
-              id: d.id,
-              ...d.data(),
-            })) as NoticeDocument[];
+            docsData = fallbackSnap.docs.map((d) => {
+              const data = d.data();
+              return {
+                id: d.id,
+                title: data.title || "Untitled Circular",
+                body: data.body || data.description || "",
+                fileUrl: data.fileUrl || data.attachmentUrl || "",
+                category: data.category || "General",
+                publishedAt: data.publishedAt || data.date || "",
+                author: data.author || "Department of Social Work, SXC Maram",
+              };
+            }) as NoticeDocument[];
           }
         }
 
-        // Always sort in memory by date (descending) so order is guaranteed
+        // Always sort in memory by publishedAt/date (descending) so order is guaranteed
         docsData.sort((a, b) => {
-          const timeA = a.date ? new Date(a.date).getTime() : 0;
-          const timeB = b.date ? new Date(b.date).getTime() : 0;
+          const rawA = a.publishedAt || a.date;
+          const rawB = b.publishedAt || b.date;
+          const timeA = rawA ? new Date(rawA?.seconds ? rawA.seconds * 1000 : rawA).getTime() : 0;
+          const timeB = rawB ? new Date(rawB?.seconds ? rawB.seconds * 1000 : rawB).getTime() : 0;
           return timeB - timeA;
         });
 
@@ -104,18 +122,33 @@ export default function NoticeBoard() {
     }
   };
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return "";
+  const formatDate = (rawDate?: any) => {
+    if (!rawDate) return "";
     try {
-      const parsed = new Date(dateStr);
-      if (isNaN(parsed.getTime())) return dateStr;
+      if (typeof rawDate === "object" && typeof rawDate?.toDate === "function") {
+        return rawDate.toDate().toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+      }
+      if (typeof rawDate === "object" && typeof rawDate?.seconds === "number") {
+        return new Date(rawDate.seconds * 1000).toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+      }
+      const str = String(rawDate);
+      const parsed = new Date(str);
+      if (isNaN(parsed.getTime())) return str;
       return parsed.toLocaleDateString("en-IN", {
         day: "numeric",
         month: "short",
         year: "numeric",
       });
     } catch {
-      return dateStr;
+      return typeof rawDate === "string" ? rawDate : "";
     }
   };
 
@@ -177,7 +210,7 @@ export default function NoticeBoard() {
             <Bell className="w-6 h-6" />
           </div>
           <h3 className="text-sm font-bold text-slate-900">
-            No announcements posted at this time
+            No active notices published at this time.
           </h3>
           <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
             All current academic sessions and fieldwork assignments are proceeding per normal schedule. New circulars will be published here.
@@ -205,7 +238,7 @@ export default function NoticeBoard() {
                     </span>
                     <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
                       <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{formatDate(notice.date)}</span>
+                      <span>{formatDate(notice.publishedAt || notice.date)}</span>
                     </div>
                   </div>
 
@@ -215,16 +248,16 @@ export default function NoticeBoard() {
                       {notice.title}
                     </h3>
                     <p className="text-xs text-slate-600 mt-1.5 leading-relaxed line-clamp-3">
-                      {notice.description || notice.body}
+                      {notice.body}
                     </p>
                   </div>
                 </div>
 
                 {/* Footer Attachment Action */}
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                  {notice.attachmentUrl ? (
+                  {notice.fileUrl ? (
                     <a
-                      href={notice.attachmentUrl}
+                      href={notice.fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-700 text-teal-800 hover:text-white border border-teal-200 text-xs font-bold transition shadow-xs group/btn"
@@ -242,7 +275,17 @@ export default function NoticeBoard() {
 
                   <button
                     type="button"
-                    onClick={() => setActiveNotice(notice)}
+                    onClick={() =>
+                      setActiveNotice({
+                        id: notice.id,
+                        title: notice.title,
+                        category: notice.category,
+                        body: notice.body,
+                        fileUrl: notice.fileUrl,
+                        publishedAt: notice.publishedAt,
+                        author: notice.author,
+                      })
+                    }
                     className="text-[11px] font-semibold text-slate-400 hover:text-teal-700 transition cursor-pointer"
                   >
                     Details →
