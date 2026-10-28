@@ -10,51 +10,31 @@ service firebase.storage {
       return isAuthenticated() && request.auth.token.admin == true;
     }
 
-    function isApprovedStudent() {
-      return isAuthenticated() && request.auth.token.approved == true;
+    function isSafeImage() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function isSafeDocument() {
+      return request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
     }
 
-    function isValidSize() {
-      return request.resource.size <= 50 * 1024 * 1024;
-    }
-
-    function isValidMime() {
-      return request.resource.contentType.matches('image/(jpeg|png|webp)')
-          || request.resource.contentType.matches('video/(mp4|webm)')
-          || request.resource.contentType == 'application/pdf'
-          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-          || request.resource.contentType == 'application/zip'
-          || request.resource.contentType == 'text/plain';
-    }
-
-    match /resources/public/{resourceId}/{fileName} {
+    // Public downloads (PDFs only)
+    match /downloads/{fileName} {
       allow read: if true;
-      allow write: if isAdmin() && request.resource.size <= 30 * 1024 * 1024;
+      allow write: if isAdmin() && isSafeDocument();
     }
 
-    match /resources/internal/{resourceId}/{fileName} {
-      allow read: if isApprovedStudent() || isAdmin();
-      allow write: if isAdmin() && request.resource.size <= 30 * 1024 * 1024;
+    // Public gallery images
+    match /gallery/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin() && isSafeImage();
     }
 
-    match /media/private/{userId}/{mediaId}/{fileName} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if (isOwner(userId) || isAdmin()) && isValidSize() && isValidMime();
-      allow update: if (isOwner(userId) || isAdmin()) && isValidSize() && isValidMime();
-      allow delete: if isOwner(userId) || isAdmin();
-    }
-
-    match /media/shared/{userId}/{mediaId}/{fileName} {
-      allow read: if isApprovedStudent() || isAdmin();
-      allow create: if (isOwner(userId) || isAdmin()) && isValidSize() && isValidMime();
-      allow update: if (isOwner(userId) || isAdmin()) && isValidSize() && isValidMime();
-      allow delete: if isOwner(userId) || isAdmin();
+    // Administrative private storage
+    match /admin/{allPaths=**} {
+      allow read, write: if isAdmin();
     }
   }
 }
