@@ -45,15 +45,6 @@ const SECTORS: AlumniSector[] = [
   "Healthcare & Mental Health",
 ];
 
-const BATCH_YEARS = [
-  "All Batches",
-  "2019-2022",
-  "2020-2023",
-  "2021-2024",
-  "2022-2025",
-  "2023-2026",
-];
-
 // Helper to extract 2-letter initials
 function getInitials(name: string): string {
   if (!name) return "SX";
@@ -102,7 +93,7 @@ export default function AlumniPage() {
   const [alumni, setAlumni] = useState<AlumniProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSector, setSelectedSector] = useState<string>("All");
-  const [selectedBatch, setSelectedBatch] = useState<string>("All Batches");
+  const [selectedBatch, setSelectedBatch] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -151,22 +142,37 @@ export default function AlumniPage() {
     }
   }, []);
 
-  const filteredAlumni = alumni.filter((item) => {
-    const matchesSector =
-      selectedSector === "All" || item.sector === selectedSector;
-    const matchesBatch =
-      selectedBatch === "All Batches" || item.batchYear === selectedBatch;
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      searchQuery === "" ||
-      item.fullName.toLowerCase().includes(q) ||
-      item.organization.toLowerCase().includes(q) ||
-      item.currentRole.toLowerCase().includes(q) ||
-      item.location.toLowerCase().includes(q) ||
-      item.higherStudies?.toLowerCase().includes(q);
+  // Dynamically extract unique available graduating batches from approved profiles
+  const dynamicBatches = Array.from(
+    new Set(alumni.map((item) => item.batchYear?.trim()))
+  )
+    .filter((b): b is string => Boolean(b))
+    .sort()
+    .reverse();
 
-    return matchesSector && matchesBatch && matchesSearch;
-  });
+  // Filter and auto-sort: newest batch first, case-insensitive search
+  const filteredAlumni = alumni
+    .filter((item) => {
+      const matchesSector =
+        selectedSector === "All" || item.sector === selectedSector;
+      const matchesBatch =
+        selectedBatch === "all" || item.batchYear?.trim() === selectedBatch;
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        q === "" ||
+        item.fullName.toLowerCase().includes(q) ||
+        item.organization.toLowerCase().includes(q) ||
+        item.currentRole.toLowerCase().includes(q) ||
+        (item.location && item.location.toLowerCase().includes(q)) ||
+        (item.higherStudies && item.higherStudies.toLowerCase().includes(q));
+
+      return matchesSector && matchesBatch && matchesSearch;
+    })
+    .sort((a, b) => {
+      const batchA = (a.batchYear || "").trim();
+      const batchB = (b.batchYear || "").trim();
+      return batchB.localeCompare(batchA, undefined, { numeric: true });
+    });
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-24">
@@ -267,46 +273,6 @@ export default function AlumniPage() {
         
         <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-4">
           
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Sector Filter Pills */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 hidden sm:inline">
-                Sector:
-              </span>
-              {SECTORS.map((sector) => (
-                <button
-                  key={sector}
-                  onClick={() => setSelectedSector(sector)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                    selectedSector === sector
-                      ? "bg-[#0f2042] text-white shadow-xs"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-                  }`}
-                >
-                  {sector}
-                </button>
-              ))}
-            </div>
-
-            {/* Batch Year Selector */}
-            <div className="flex items-center gap-2 self-start lg:self-auto shrink-0">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
-                Batch:
-              </span>
-              <select
-                value={selectedBatch}
-                onChange={(e) => setSelectedBatch(e.target.value)}
-                className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#0f2042]/20"
-              >
-                {BATCH_YEARS.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           {/* Search Box */}
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -314,10 +280,96 @@ export default function AlumniPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search alumni by name, role, organization, master's degree, or location..."
-              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#0f2042]/20 focus:border-[#0f2042] transition"
+              placeholder="Search alumni by name, role, organization, or location..."
+              className="w-full pl-10 pr-10 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#0f2042]/20 focus:border-[#0f2042] transition"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
+
+          {/* Dynamic Batch Filter Pills & Dropdown */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 border-t border-slate-100">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                Batch:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedBatch("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  selectedBatch === "all"
+                    ? "bg-[#0f2042] text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                }`}
+              >
+                All Batches
+              </button>
+              {dynamicBatches.map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setSelectedBatch(b)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    selectedBatch === b
+                      ? "bg-[#0f2042] text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                  }`}
+                >
+                  Batch {b}
+                </button>
+              ))}
+            </div>
+
+            {dynamicBatches.length > 0 && (
+              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                  Cohort:
+                </span>
+                <select
+                  value={selectedBatch}
+                  onChange={(e) => setSelectedBatch(e.target.value)}
+                  className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-800 font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#0f2042]/20 cursor-pointer"
+                >
+                  <option value="all">All Batches</option>
+                  {dynamicBatches.map((b) => (
+                    <option key={b} value={b}>
+                      Batch {b}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Sector Filter Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs pt-1 border-t border-slate-100">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 hidden sm:inline">
+              Sector:
+            </span>
+            {SECTORS.map((sector) => (
+              <button
+                key={sector}
+                type="button"
+                onClick={() => setSelectedSector(sector)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  selectedSector === sector
+                    ? "bg-[#0f2042] text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                }`}
+              >
+                {sector}
+              </button>
+            ))}
+          </div>
+
         </div>
 
         {/* Directory Count Status */}
@@ -325,16 +377,18 @@ export default function AlumniPage() {
           <span>
             Showing <strong className="text-slate-900">{filteredAlumni.length}</strong> verified alumni profile{filteredAlumni.length === 1 ? "" : "s"}
           </span>
-          <button
-            onClick={() => {
-              setSelectedSector("All");
-              setSelectedBatch("All Batches");
-              setSearchQuery("");
-            }}
-            className="text-[#0f2042] hover:underline font-semibold"
-          >
-            Reset Filters
-          </button>
+          {(selectedSector !== "All" || selectedBatch !== "all" || searchQuery !== "") && (
+            <button
+              onClick={() => {
+                setSelectedSector("All");
+                setSelectedBatch("all");
+                setSearchQuery("");
+              }}
+              className="text-[#0f2042] hover:underline font-semibold cursor-pointer"
+            >
+              Reset Filters
+            </button>
+          )}
         </div>
 
       </section>
@@ -564,7 +618,7 @@ function AlumniSubmissionModal({
   onSubmitted: () => void;
 }) {
   const [fullName, setFullName] = useState("");
-  const [batchYear, setBatchYear] = useState("2020-2023");
+  const [batchYear, setBatchYear] = useState("");
   const [currentRole, setCurrentRole] = useState("");
   const [organization, setOrganization] = useState("");
   const [sector, setSector] = useState<AlumniSector>("Public Sector");
@@ -638,8 +692,8 @@ function AlumniSubmissionModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !currentRole.trim() || !organization.trim() || !email.trim()) {
-      alert("Please fill in your name, current role, organization, and email.");
+    if (!fullName.trim() || !batchYear.trim() || !currentRole.trim() || !organization.trim() || !email.trim()) {
+      alert("Please fill in your name, graduating batch, current role, organization, and email.");
       return;
     }
 
@@ -655,7 +709,7 @@ function AlumniSubmissionModal({
         batchYear: batchYear.trim(),
         currentRole: currentRole.trim(),
         organization: organization.trim(),
-        sector: sector || "Public Sector / Government",
+        sector: sector || "Public Sector",
         location: location.trim(),
         higherStudies: (higherStudies || "").trim(),
         quote: (quote || "").trim(),
@@ -732,17 +786,15 @@ function AlumniSubmissionModal({
               <label className="block text-[11px] font-bold text-slate-700 mb-1">
                 Graduating Batch *
               </label>
-              <select
+              <input
+                type="text"
                 value={batchYear}
                 onChange={(e) => setBatchYear(e.target.value)}
+                placeholder="e.g., 2021–2024 or 2024"
+                maxLength={20}
+                required
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 font-semibold"
-              >
-                <option value="2019-2022">Batch 2019–2022 (Pioneer Cohort)</option>
-                <option value="2020-2023">Batch 2020–2023</option>
-                <option value="2021-2024">Batch 2021–2024</option>
-                <option value="2022-2025">Batch 2022–2025</option>
-                <option value="2023-2026">Batch 2023–2026</option>
-              </select>
+              />
             </div>
           </div>
 

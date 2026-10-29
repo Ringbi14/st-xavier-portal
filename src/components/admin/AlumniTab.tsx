@@ -179,8 +179,8 @@ export default function AlumniTab() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !currentRole.trim() || !organization.trim() || !email.trim()) {
-      alert("Please provide the full name, current role, organization, and email.");
+    if (!fullName.trim() || !batchYear.trim() || !currentRole.trim() || !organization.trim() || !email.trim()) {
+      alert("Please provide the full name, graduating batch, current role, organization, and email.");
       return;
     }
     setIsSubmitting(true);
@@ -506,17 +506,15 @@ export default function AlumniTab() {
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
                     Graduating Batch *
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={batchYear}
                     onChange={(e) => setBatchYear(e.target.value)}
+                    placeholder="e.g., 2021–2024 or 2024"
+                    maxLength={20}
+                    required
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 font-semibold"
-                  >
-                    <option value="2019-2022">Batch 2019–2022</option>
-                    <option value="2020-2023">Batch 2020–2023</option>
-                    <option value="2021-2024">Batch 2021–2024</option>
-                    <option value="2022-2025">Batch 2022–2025</option>
-                    <option value="2023-2026">Batch 2023–2026</option>
-                  </select>
+                  />
                 </div>
               </div>
 
