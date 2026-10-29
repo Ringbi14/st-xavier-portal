@@ -26,45 +26,6 @@ const DOMAIN_FILTERS: { label: string; value: string }[] = [
   { label: "Women & Family", value: "Women & Family" },
 ];
 
-const DEFAULT_AGENCIES_FALLBACK: AgencyItem[] = [
-  {
-    id: "default-org-1",
-    name: "Senapati District Community Development Trust",
-    domain: "Community Development",
-    location: "Senapati Headquarters, Manipur",
-    contactPerson: "Field Liaison Officer",
-    website: "https://stxaviercollegespt.ac.in",
-    description: "Active community organization partnering on participatory rural appraisals, village youth collectives, and women self-help group capacity building.",
-  },
-  {
-    id: "default-org-2",
-    name: "Maram Rural Health & Child Care Center",
-    domain: "Medical & Psychiatric",
-    location: "Maram, Senapati District",
-    contactPerson: "Dr. K. Mathew (Chief Medical Officer)",
-    website: "",
-    description: "Primary clinical healthcare setting focusing on community health interventions, maternal nutrition, and mental health counseling.",
-  },
-  {
-    id: "default-org-3",
-    name: "Youth Action & Child Welfare Society",
-    domain: "Child & Youth Welfare",
-    location: "Tadubi, Senapati District",
-    contactPerson: "Ms. Veronica (Director)",
-    website: "",
-    description: "Grassroots organization assisting indigenous youth collectives through advocacy, child protection workshops, and village immersion programs.",
-  },
-  {
-    id: "default-org-4",
-    name: "Kangpokpi Women Empowerment Federation",
-    domain: "Women & Family",
-    location: "Kangpokpi, Manipur",
-    contactPerson: "Mrs. Esther (Secretary)",
-    website: "",
-    description: "District-level social collective fostering legal literacy, rural microfinance cooperatives, and family counseling desks.",
-  },
-];
-
 export default function AgencyDirectorySection({ isStandalonePage = false }: { isStandalonePage?: boolean }) {
   const [agencies, setAgencies] = useState<AgencyItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,12 +78,12 @@ export default function AgencyDirectorySection({ isStandalonePage = false }: { i
             });
             setAgencies(loadedOrgs);
           } else {
-            setAgencies(DEFAULT_AGENCIES_FALLBACK);
+            setAgencies([]);
           }
         }
       } catch (err) {
-        console.warn("Could not fetch agencies from Firestore, using default directory:", err);
-        setAgencies(DEFAULT_AGENCIES_FALLBACK);
+        console.warn("Could not fetch agencies from Firestore:", err);
+        setAgencies([]);
       } finally {
         setLoading(false);
       }
@@ -244,8 +205,17 @@ export default function AgencyDirectorySection({ isStandalonePage = false }: { i
               </div>
             ))}
           </div>
+        ) : agencies.length === 0 ? (
+          // Global Empty State
+          <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
+            <Briefcase className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-sm font-bold text-slate-900">Agency Directory Updating</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              Fieldwork partner organization directory is currently being updated by the department.
+            </p>
+          </div>
         ) : filtered.length === 0 ? (
-          // Empty State
+          // Filtered Empty State
           <div className="text-center py-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
             <Briefcase className="w-10 h-10 text-slate-300 mx-auto mb-3" />
             <h3 className="text-sm font-bold text-slate-900">No partner agencies match your filters</h3>

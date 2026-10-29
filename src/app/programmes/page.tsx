@@ -221,8 +221,9 @@ export default function ProgrammesPage() {
         const snap = await getDocs(qSyllabus);
         if (!snap.empty) {
           const docData = snap.docs[0].data();
-          if (docData.fileUrl) {
-            setSyllabusUrl(docData.fileUrl);
+          const fileLink = docData.url || docData.fileUrl || docData.downloadUrl;
+          if (fileLink) {
+            setSyllabusUrl(fileLink);
           }
         }
       } catch (err) {

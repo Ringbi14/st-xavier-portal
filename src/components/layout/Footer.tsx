@@ -142,17 +142,14 @@ export default function Footer() {
               <div className="flex items-start gap-2">
                 <Building2 className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                 <span className="leading-snug">
-                  St. Xavier College, Maram Khunou, Senapati District, Manipur - 795106
+                  Department of Social Work, St. Xavier College, Maram Khunou, Senapati District, Manipur – 795106
                 </span>
               </div>
               <div className="text-[10px] text-amber-300/90 font-medium pl-5.5">
                 Affiliated to Manipur University
               </div>
-              <div className="flex items-center gap-2 pt-1">
-                <Mail className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <a href="mailto:socialwork@stxaviercollegespt.ac.in" className="hover:text-white transition truncate">
-                  socialwork@stxaviercollegespt.ac.in
-                </a>
+              <div className="text-[10px] text-slate-400 pt-1 leading-relaxed">
+                Official departmental phone and email contacts are being updated in consultation with the Department Office. Please visit the department desk during working hours.
               </div>
               <div className="pt-2 flex items-center gap-2">
                 <a

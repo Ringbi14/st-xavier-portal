@@ -32,85 +32,8 @@ export interface AgencyItem {
   website?: string;
 }
 
-const DOMAIN_FILTERS = [
-  "All Settings",
-  "Community Development",
-  "Child Welfare",
-  "Healthcare",
-  "Women & Family",
-] as const;
-
-const DEFAULT_AGENCIES: AgencyItem[] = [
-  {
-    id: "agency-1",
-    name: "District Child Protection Unit (DCPU) — Senapati",
-    domain: "Child Welfare",
-    location: "Senapati District Headquarters, Manipur",
-    description:
-      "Statutory nodal child protection body operating under Mission Vatsalya and the Juvenile Justice Act. BSW students assist in case studies of children in need of care and protection, child welfare committee documentation, foster care follow-ups, and rural school awareness rallies on child rights.",
-    contactPerson: "District Child Protection Officer (DCPO)",
-    phone: "+91 3871 222145",
-    website: "https://senapati.nic.in",
-  },
-  {
-    id: "agency-2",
-    name: "Senapati District Hospital — Medical Social Work Unit",
-    domain: "Healthcare",
-    location: "District Hospital Campus, Senapati, Manipur",
-    description:
-      "Principal government healthcare institution in the district. Trainee social workers support patient navigation, psycho-social intake assessments in the psychiatric ward, maternal health counseling, and health literacy drives across surrounding hill villages.",
-    contactPerson: "Medical Superintendent / Social Work In-Charge",
-    phone: "+91 3871 222300",
-    website: "",
-  },
-  {
-    id: "agency-3",
-    name: "Maram Rural Community Development Association (MRCDA)",
-    domain: "Community Development",
-    location: "Maram Khunou, Senapati District, Manipur",
-    description:
-      "Indigenous grassroots society engaged in rural community mobilization, tribal farmer livelihoods, and self-help group federation strengthening. Students conduct Participatory Rural Appraisals (PRA), community need assessments, and skill-training workshops for village youth.",
-    contactPerson: "Field Program Director",
-    phone: "+91 9436 032110",
-    website: "https://stxaviercollegespt.ac.in",
-  },
-  {
-    id: "agency-4",
-    name: "Kangpokpi Women & Family Counseling Centre",
-    domain: "Women & Family",
-    location: "Kangpokpi Town, Manipur",
-    description:
-      "Community center dedicated to women's legal awareness, dispute mediation, family preservation, and survivor rehabilitation. Fieldwork students engage in casework documentation, family counseling assistance, and economic self-reliance workshops for single mothers.",
-    contactPerson: "General Secretary",
-    phone: "+91 9862 109845",
-    website: "",
-  },
-  {
-    id: "agency-5",
-    name: "Karong Youth Action & Environmental Society",
-    domain: "Community Development",
-    location: "Karong, Senapati District, Manipur",
-    description:
-      "Civil society collective addressing watershed conservation, village sanitation, youth leadership, and tribal cultural heritage preservation. Practicum students coordinate community cleanliness campaigns, eco-clubs in schools, and environmental baseline surveys.",
-    contactPerson: "Youth Coordinator",
-    phone: "+91 9436 887213",
-    website: "",
-  },
-  {
-    id: "agency-6",
-    name: "Primary Health Centre (PHC) — Tadubi",
-    domain: "Healthcare",
-    location: "Tadubi Block, Senapati District, Manipur",
-    description:
-      "Community health facility providing rural outpatient care, immunization, and community outreach. Trainee social workers facilitate patient counseling, immunization awareness campaigns in remote hamlets, and community feedback surveys on healthcare access.",
-    contactPerson: "Medical Officer In-Charge",
-    phone: "+91 3871 242010",
-    website: "",
-  },
-];
-
 function getDomainBadge(domain: string) {
-  const normalized = domain.toLowerCase();
+  const normalized = (domain || "").toLowerCase();
   if (normalized.includes("community")) {
     return "bg-teal-50 text-teal-800 border-teal-200 ring-1 ring-teal-100";
   }
@@ -131,18 +54,18 @@ function getDomainBadge(domain: string) {
 
 function matchesDomainFilter(agencyDomain: string, filter: string): boolean {
   if (filter === "All Settings") return true;
-  const aDom = agencyDomain.toLowerCase();
+  const aDom = (agencyDomain || "").toLowerCase();
   const fDom = filter.toLowerCase();
 
   if (fDom === "community development") return aDom.includes("community");
   if (fDom === "child welfare") return aDom.includes("child") || aDom.includes("youth");
   if (fDom === "healthcare") return aDom.includes("health") || aDom.includes("medical") || aDom.includes("psychiatric");
   if (fDom === "women & family") return aDom.includes("women") || aDom.includes("family");
-  return aDom.includes(fDom);
+  return aDom === fDom || aDom.includes(fDom);
 }
 
 export default function AgenciesPage() {
-  const [agencies, setAgencies] = useState<AgencyItem[]>(DEFAULT_AGENCIES);
+  const [agencies, setAgencies] = useState<AgencyItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedDomain, setSelectedDomain] = useState<string>("All Settings");
@@ -219,11 +142,14 @@ export default function AgenciesPage() {
           }
         }
 
-        if (docsData.length > 0 && isMounted) {
+        if (isMounted) {
           setAgencies(docsData);
         }
       } catch (err) {
-        console.warn("Using fallback agency directory:", err);
+        console.warn("Could not load agencies from Firestore:", err);
+        if (isMounted) {
+          setAgencies([]);
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -315,7 +241,12 @@ export default function AgenciesPage() {
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 flex items-center gap-1">
                 <Filter className="w-3 h-3" /> Practice Domain:
               </span>
-              {DOMAIN_FILTERS.map((pill) => (
+              {Array.from(
+                new Set([
+                  "All Settings",
+                  ...agencies.map((a) => (a.domain || "").trim()).filter(Boolean),
+                ])
+              ).map((pill) => (
                 <button
                   key={pill}
                   onClick={() => setSelectedDomain(pill)}
@@ -474,9 +405,23 @@ export default function AgenciesPage() {
         )}
 
         {/* ========================================================= */}
-        {/* 5. EMPTY SEARCH STATE                                     */}
+        {/* 5. EMPTY STATES                                           */}
         {/* ========================================================= */}
-        {!loading && filteredAgencies.length === 0 && (
+        {!loading && agencies.length === 0 && (
+          <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 mx-auto mb-3">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">
+              Agency Directory Updating
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              Fieldwork partner organization directory is currently being updated by the department.
+            </p>
+          </div>
+        )}
+
+        {!loading && agencies.length > 0 && filteredAgencies.length === 0 && (
           <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-xs">
             <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 mx-auto mb-3">
               <Building2 className="w-6 h-6" />

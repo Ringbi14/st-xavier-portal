@@ -116,8 +116,8 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
             id: doc.id,
             title: d.title || d.galleryData?.title || "Fieldwork Highlight",
             category: (d.category || d.galleryData?.category || "Rural Camp") as ShowcaseCategory,
-            academicYear: d.academicYear || d.galleryData?.year || d.year || "2025-2026",
-            location: d.location || d.galleryData?.location || "Senapati District, Manipur",
+            academicYear: (d.academicYear || d.galleryData?.year || d.year || "").trim(),
+            location: (d.location || d.galleryData?.location || "").trim(),
             impactSummary: d.impactSummary || d.galleryData?.description || d.description || "",
             imageUrl: (d.photoUrl || d.imageUrl || d.galleryData?.photoUrl || d.galleryData?.imageUrl || d.galleryData?.publicUrl || d.publicUrl || "").trim(),
             createdAt: d.createdAt,
@@ -297,12 +297,14 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
 
                     {/* Metadata & Title */}
                     <div className="p-5 space-y-2.5">
-                      <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                        <span className="flex items-center gap-1 text-slate-600 font-medium">
-                          <Calendar className="w-3.5 h-3.5 text-teal-700" />
-                          Batch {item.academicYear}
-                        </span>
-                      </div>
+                      {item.academicYear && (
+                        <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
+                          <span className="flex items-center gap-1 text-slate-600 font-medium">
+                            <Calendar className="w-3.5 h-3.5 text-teal-700" />
+                            Batch {item.academicYear}
+                          </span>
+                        </div>
+                      )}
 
                       <h3 className="text-base font-bold text-slate-900 group-hover:text-teal-800 transition line-clamp-2 leading-snug">
                         {item.title}
@@ -316,12 +318,13 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
                     </div>
                   </div>
 
-                  {/* Card Footer */}
                   <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
-                    <div className="flex items-center gap-1.5 truncate max-w-[70%]">
-                      <MapPin className="w-3.5 h-3.5 text-teal-700 shrink-0" />
-                      <span className="truncate text-[11px] font-medium text-slate-600">{item.location}</span>
-                    </div>
+                    {item.location ? (
+                      <div className="flex items-center gap-1.5 truncate max-w-[70%]">
+                        <MapPin className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                        <span className="truncate text-[11px] font-medium text-slate-600">{item.location}</span>
+                      </div>
+                    ) : <div />}
                     <span className="text-teal-800 font-bold text-xs group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
                       Inspect →
                     </span>
@@ -366,15 +369,19 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
                   {activeModal.category}
                 </span>
 
-                <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 px-3 py-1 rounded-lg font-mono">
-                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                  {activeModal.academicYear}
-                </span>
+                {activeModal.academicYear && (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 px-3 py-1 rounded-lg font-mono">
+                    <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                    {activeModal.academicYear}
+                  </span>
+                )}
 
-                <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
-                  <MapPin className="w-3.5 h-3.5 text-teal-700" />
-                  {activeModal.location}
-                </span>
+                {activeModal.location && (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 px-3 py-1 rounded-lg">
+                    <MapPin className="w-3.5 h-3.5 text-teal-700" />
+                    {activeModal.location}
+                  </span>
+                )}
               </div>
 
               <div>

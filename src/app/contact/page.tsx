@@ -26,17 +26,16 @@ export default function ContactPage() {
               <MapPin className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
               <div>
                 <strong className="block text-slate-900">Department of Social Work</strong>
-                <span>St. Xavier College Campus, Maram Khunou</span>
-                <span className="block text-slate-500">Senapati District, Manipur — 795105, India</span>
+                <span>St. Xavier College, Maram Khunou</span>
+                <span className="block text-slate-500">Senapati District, Manipur – 795106</span>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Mail className="w-4 h-4 text-teal-700 shrink-0" />
-              <span>socialwork@stxaviercollegespt.ac.in</span>
             </div>
             <div className="flex items-center gap-3">
               <Clock className="w-4 h-4 text-teal-700 shrink-0" />
               <span>Office Hours: Monday – Friday, 09:00 AM – 04:00 PM IST</span>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-amber-900 text-[11px] leading-relaxed">
+              Official departmental phone and email contacts are being updated in consultation with the Department Office. Please visit the department desk during working hours.
             </div>
           </div>
         </div>

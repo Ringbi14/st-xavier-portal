@@ -14,7 +14,6 @@ import {
   HeartHandshake, 
   Sparkles, 
   CheckCircle2, 
-  Calendar,
   ArrowRight
 } from "lucide-react";
 
@@ -57,28 +56,7 @@ export default function AboutPage() {
     },
   ];
 
-  const historyMilestones = [
-    {
-      year: "2019",
-      title: "Establishment of the Department",
-      desc: "The Department of Social Work was formally established at St. Xavier College, Maram Khunou, introducing the Bachelor of Social Work (BSW) curriculum affiliated with Manipur University.",
-    },
-    {
-      year: "2020–2021",
-      title: "Fieldwork Network Foundation",
-      desc: "Formulated formal institutional linkages with civil society organizations, health centers, and community institutions across Senapati district.",
-    },
-    {
-      year: "2022–2024",
-      title: "Rural Educational Camps & Outreach",
-      desc: "Expanded annual intensive 7-day rural educational camps, conducting participatory rural appraisals (PRA), health camps, and cultural documentation.",
-    },
-    {
-      year: "2025–Present",
-      title: "Digital Ecosystem & Regional Impact",
-      desc: "Launched centralized digital archives, formal alumni networks, and expanded block internship placements across Northeast India.",
-    },
-  ];
+
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
@@ -194,35 +172,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Department History Timeline */}
-        <section className="p-8 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-teal-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>Department Chronicle</span>
-              </span>
-              <h2 className="text-2xl font-black text-slate-900 mt-0.5">
-                History & Milestones
-              </h2>
-            </div>
-            <span className="text-xs font-mono px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-              Est. 2019
-            </span>
-          </div>
 
-          <div className="relative border-l-2 border-slate-200 pl-6 space-y-8 ml-2">
-            {historyMilestones.map((h, idx) => (
-              <div key={idx} className="relative group">
-                {/* Dot */}
-                <div className="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-white border-2 border-teal-700 shadow-xs" />
-                <span className="text-xs font-bold text-teal-800 font-mono">{h.year}</span>
-                <h4 className="text-sm font-bold text-slate-900 mt-0.5">{h.title}</h4>
-                <p className="text-xs text-slate-600 leading-relaxed mt-1">{h.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
 
         {/* Next Step Callout */}
         <section className="p-6 rounded-2xl bg-teal-50/70 border border-teal-200 flex flex-col sm:flex-row items-center justify-between gap-4">

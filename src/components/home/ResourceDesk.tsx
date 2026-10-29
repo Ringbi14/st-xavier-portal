@@ -19,37 +19,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-// Standard Departmental Academic Repository Items (St. Xavier College, Maram Khunou)
-export const DEFAULT_ACADEMIC_RESOURCES: DownloadItem[] = [
-  {
-    id: "res-syllabus-bsw",
-    title: "BSW Course Curriculum & Credit Structure",
-    category: "Syllabus",
-    targetProgram: "BSW",
-    note: "Official Manipur University affiliated curriculum framework, course regulations, and semester credit distributions.",
-    url: "/downloads/bsw-curriculum-overview.pdf",
-    academicYear: "2025-2026",
-  },
-  {
-    id: "res-practicum-manual",
-    title: "Fieldwork Practicum Manual & Code of Ethics",
-    category: "General Guidelines",
-    targetProgram: "BSW",
-    note: "Supervisory norms, evaluation matrices, agency interaction protocols, and Jesuit social work ethical standards.",
-    url: "/downloads/social-work-fieldwork-manual.pdf",
-    academicYear: "2025-2026",
-  },
-  {
-    id: "res-rural-camp-guide",
-    title: "Rural Educational Camp Manual & PRA Guide",
-    category: "Camp Manuals",
-    targetProgram: "BSW",
-    note: "Guidelines for Participatory Rural Appraisal (PRA), rural community immersion, and village survey methodology.",
-    url: "/downloads/rural-camp-handbook.pdf",
-    academicYear: "2025-2026",
-  },
-];
-
 export default function ResourceDesk() {
   const [items, setItems] = useState<DownloadItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,15 +55,13 @@ export default function ResourceDesk() {
           }
         }
 
-        if (docsData.length > 0) {
-          if (isMounted) setItems(docsData);
-        } else {
-          if (isMounted) setItems(DEFAULT_ACADEMIC_RESOURCES);
+        if (isMounted) {
+          setItems(docsData);
         }
       } catch (err) {
-        console.warn("Could not load downloads from Firestore, using standard academic items:", err);
+        console.warn("Could not load downloads from Firestore:", err);
         if (isMounted) {
-          setItems(DEFAULT_ACADEMIC_RESOURCES);
+          setItems([]);
         }
       } finally {
         if (isMounted) {
@@ -254,7 +221,7 @@ export default function ResourceDesk() {
             No documents currently uploaded
           </h3>
           <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
-            Official coursework materials, fieldwork recording manuals, and evaluation rubrics will appear here once released by the department.
+            Official academic manuals and syllabus PDFs will appear here once uploaded by the department.
           </p>
         </div>
       )}

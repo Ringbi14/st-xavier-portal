@@ -144,8 +144,8 @@ export default function HomePage() {
               id: doc.id,
               title: data.title || "Fieldwork Activity",
               category: data.category || "Fieldwork",
-              location: data.location || "Senapati District",
-              year: data.year || "2025-2026",
+              location: (data.location || "").trim(),
+              year: (data.year || "").trim(),
               imageUrl: (data.photoUrl || data.imageUrl || data.publicUrl || "").trim(),
             };
           });
