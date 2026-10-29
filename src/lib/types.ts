@@ -177,7 +177,7 @@ export interface AlumniProfile {
   quote?: string;
   photoUrl?: string;
   linkedinUrl?: string;
-  email: string;
+  email?: string;
   status: "approved" | "pending";
   createdAt: any;
   updatedAt?: any;

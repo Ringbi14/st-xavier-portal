@@ -37,10 +37,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const syncUserState = async (currentUser: User) => {
+  const syncUserState = async (currentUser: User, forceRefresh: boolean = false) => {
     try {
-      // Authoritative check: Admin access is strictly granted via refreshed Firebase Auth custom claim
-      const tokenResult = await currentUser.getIdTokenResult(true);
+      // Authoritative check: Admin access is strictly granted via Firebase Auth custom claim
+      const tokenResult = await currentUser.getIdTokenResult(forceRefresh);
       const hasAdminAccess = tokenResult.claims.admin === true;
 
       const docRef = doc(db, "users", currentUser.uid);
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
 
       if (currentUser) {
-        await syncUserState(currentUser);
+        await syncUserState(currentUser, false);
       } else {
         setProfile(null);
         setIsAdmin(false);
@@ -86,13 +86,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshClaims = async () => {
     if (auth.currentUser) {
-      await syncUserState(auth.currentUser);
+      await syncUserState(auth.currentUser, true);
     }
   };
 
   const signInWithEmail = async (email: string, pass: string) => {
     const cred = await signInWithEmailAndPassword(auth, email, pass);
-    await syncUserState(cred.user);
+    await syncUserState(cred.user, true);
     return cred;
   };
 

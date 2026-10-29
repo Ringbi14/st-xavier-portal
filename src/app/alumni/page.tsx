@@ -10,6 +10,8 @@ import {
   addDoc,
   serverTimestamp,
   onSnapshot,
+  doc,
+  setDoc,
 } from "firebase/firestore";
 import { AlumniProfile, AlumniSector } from "@/lib/types";
 import {
@@ -704,7 +706,14 @@ function AlumniSubmissionModal({
         cleanPhoto = cleanPhoto.replace("http://", "https://");
       }
 
-      const payload = {
+      let cleanLinkedin = (linkedinUrl || "").trim();
+      if (cleanLinkedin && !cleanLinkedin.startsWith("http://") && !cleanLinkedin.startsWith("https://")) {
+        cleanLinkedin = "https://" + cleanLinkedin;
+      }
+
+      const newAlumRef = doc(collection(db, "alumni"));
+
+      const publicPayload = {
         fullName: fullName.trim(),
         batchYear: batchYear.trim(),
         currentRole: currentRole.trim(),
@@ -713,14 +722,22 @@ function AlumniSubmissionModal({
         location: location.trim(),
         higherStudies: (higherStudies || "").trim(),
         quote: (quote || "").trim(),
-        photoUrl: (cleanPhoto || "").trim(),
-        linkedinUrl: (linkedinUrl || "").trim(),
-        email: email.trim(),
+        photoUrl: cleanPhoto,
+        linkedinUrl: cleanLinkedin,
         status: "pending",
-        createdAt: new Date().toISOString(),
+        createdAt: serverTimestamp(),
       };
 
-      await addDoc(collection(db, "alumni"), payload);
+      // 1. Write public profile document without email
+      await setDoc(newAlumRef, publicPayload);
+
+      // 2. Write private contact record for departmental verification only
+      await setDoc(doc(db, "alumni_private", newAlumRef.id), {
+        email: email.trim().toLowerCase(),
+        fullName: fullName.trim(),
+        createdAt: serverTimestamp(),
+      });
+
       onSubmitted();
     } catch (err: any) {
       console.error("Failed to submit alumni profile:", err);

@@ -91,16 +91,47 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'fullName', 'batchYear', 'currentRole', 'organization',
           'sector', 'location', 'higherStudies', 'quote',
-          'photoUrl', 'linkedinUrl', 'email', 'status', 'createdAt'
+          'photoUrl', 'linkedinUrl', 'status', 'createdAt'
         ])
         && request.resource.data.fullName is string
-        && request.resource.data.fullName.size() > 0
+        && request.resource.data.fullName.size() >= 1
         && request.resource.data.fullName.size() <= 100
         && request.resource.data.batchYear is string
-        && request.resource.data.batchYear.size() <= 20;
+        && request.resource.data.batchYear.size() >= 4
+        && request.resource.data.batchYear.size() <= 20
+        && request.resource.data.currentRole is string
+        && request.resource.data.currentRole.size() <= 120
+        && request.resource.data.organization is string
+        && request.resource.data.organization.size() <= 150
+        && request.resource.data.sector is string
+        && request.resource.data.sector.size() <= 80
+        && request.resource.data.location is string
+        && request.resource.data.location.size() <= 100
+        && request.resource.data.higherStudies is string
+        && request.resource.data.higherStudies.size() <= 200
+        && request.resource.data.quote is string
+        && request.resource.data.quote.size() <= 600
+        && request.resource.data.linkedinUrl is string
+        && request.resource.data.linkedinUrl.size() <= 250
+        && (request.resource.data.linkedinUrl.size() == 0 || request.resource.data.linkedinUrl.matches('^https://(www\\.)?linkedin\\.com/.*'))
+        && request.resource.data.photoUrl is string
+        && request.resource.data.photoUrl.size() <= 500
+        && (request.resource.data.photoUrl.size() == 0 || request.resource.data.photoUrl.matches('^https://res\\.cloudinary\\.com/.*'));
 
       // Only admins can approve, edit, or delete alumni profiles
       allow update, delete: if isAdmin();
+    }
+
+    // 6. Alumni Private Contact Records: Admin read/manage only, public create with strict validation
+    match /alumni_private/{docId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if request.resource.data.keys().hasOnly(['email', 'fullName', 'createdAt'])
+        && request.resource.data.email is string
+        && request.resource.data.email.size() >= 5
+        && request.resource.data.email.size() <= 150
+        && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() <= 100;
     }
   }
 }

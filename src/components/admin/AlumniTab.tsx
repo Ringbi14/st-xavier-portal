@@ -10,7 +10,8 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  addDoc,
+  setDoc,
+  deleteField,
   serverTimestamp,
 } from "firebase/firestore";
 import {
@@ -82,30 +83,70 @@ export default function AlumniTab() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const colRef = collection(db, "alumni");
-    let unsub: () => void = () => {};
+    let rawPublic: any[] = [];
+    let rawPrivate: Record<string, string> = {};
+
+    const mergeAndSet = () => {
+      const merged = rawPublic.map((item) => ({
+        ...item,
+        email: rawPrivate[item.id] || item.email || "",
+      }));
+      setAlumni(merged);
+    };
+
+    const pubCol = collection(db, "alumni");
+    const privCol = collection(db, "alumni_private");
+
+    let unsubPub: () => void = () => {};
+    let unsubPriv: () => void = () => {};
 
     try {
-      const q = query(colRef, orderBy("createdAt", "desc"));
-      unsub = onSnapshot(
+      unsubPriv = onSnapshot(
+        privCol,
+        (snap) => {
+          const pMap: Record<string, string> = {};
+          snap.docs.forEach((d) => {
+            const data = d.data();
+            if (data.email) pMap[d.id] = data.email;
+          });
+          rawPrivate = pMap;
+          mergeAndSet();
+        },
+        (err) => {
+          console.warn("Snapshot warning for alumni_private:", err);
+        }
+      );
+    } catch (err) {
+      console.warn("Failed to listen to alumni_private:", err);
+    }
+
+    try {
+      const q = query(pubCol, orderBy("createdAt", "desc"));
+      unsubPub = onSnapshot(
         q,
         (snap) => {
-          setAlumni(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+          rawPublic = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          mergeAndSet();
         },
         (err) => {
           console.warn("Ordered alumni snapshot error, falling back:", err);
-          unsub = onSnapshot(colRef, (snap) => {
-            setAlumni(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+          unsubPub = onSnapshot(pubCol, (snap) => {
+            rawPublic = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            mergeAndSet();
           });
         }
       );
     } catch {
-      unsub = onSnapshot(colRef, (snap) => {
-        setAlumni(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+      unsubPub = onSnapshot(pubCol, (snap) => {
+        rawPublic = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        mergeAndSet();
       });
     }
 
-    return () => unsub();
+    return () => {
+      unsubPub();
+      unsubPriv();
+    };
   }, []);
 
   const pendingList = alumni.filter((a) => a.status === "pending");
@@ -157,8 +198,21 @@ export default function AlumniTab() {
 
   const handleApprove = async (id: string, name: string) => {
     try {
+      const item = alumni.find((a) => a.id === id);
+      if (item?.email) {
+        await setDoc(
+          doc(db, "alumni_private", id),
+          {
+            email: item.email.trim().toLowerCase(),
+            fullName: item.fullName?.trim() || name,
+            createdAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
       await updateDoc(doc(db, "alumni", id), {
         status: "approved",
+        email: deleteField(),
         updatedAt: serverTimestamp(),
       });
     } catch (err: any) {
@@ -171,6 +225,11 @@ export default function AlumniTab() {
     if (!confirm(`Are you sure you want to permanently delete profile for "${name}"?`)) return;
     try {
       await deleteDoc(doc(db, "alumni", id));
+      try {
+        await deleteDoc(doc(db, "alumni_private", id));
+      } catch {
+        // ignore if private record does not exist
+      }
     } catch (err: any) {
       console.error("Delete failed:", err);
       alert(`Failed to delete alumni profile: ${err?.message || err}`);
@@ -190,8 +249,12 @@ export default function AlumniTab() {
       if (cleanPhoto.startsWith("http://")) {
         cleanPhoto = cleanPhoto.replace("http://", "https://");
       }
+      let cleanLinkedin = (linkedinUrl || "").trim();
+      if (cleanLinkedin && !cleanLinkedin.startsWith("http://") && !cleanLinkedin.startsWith("https://")) {
+        cleanLinkedin = "https://" + cleanLinkedin;
+      }
 
-      const payload = {
+      const publicPayload = {
         fullName: fullName.trim(),
         batchYear: batchYear.trim(),
         currentRole: currentRole.trim(),
@@ -201,19 +264,42 @@ export default function AlumniTab() {
         higherStudies: (higherStudies || "").trim(),
         quote: (quote || "").trim(),
         photoUrl: cleanPhoto,
-        email: email.trim().toLowerCase(),
-        linkedinUrl: (linkedinUrl || "").trim(),
-        status: "approved",
+        linkedinUrl: cleanLinkedin,
+        status: "approved" as const,
       };
 
       if (editingId) {
+        // Save private email
+        await setDoc(
+          doc(db, "alumni_private", editingId),
+          {
+            email: email.trim().toLowerCase(),
+            fullName: fullName.trim(),
+            createdAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        // Update public document and strip email field
         await updateDoc(doc(db, "alumni", editingId), {
-          ...payload,
+          ...publicPayload,
+          email: deleteField(),
           updatedAt: serverTimestamp(),
         });
       } else {
-        await addDoc(collection(db, "alumni"), {
-          ...payload,
+        const newDocRef = doc(collection(db, "alumni"));
+
+        await setDoc(
+          doc(db, "alumni_private", newDocRef.id),
+          {
+            email: email.trim().toLowerCase(),
+            fullName: fullName.trim(),
+            createdAt: serverTimestamp(),
+          }
+        );
+
+        await setDoc(newDocRef, {
+          ...publicPayload,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
