@@ -276,10 +276,12 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
             {filteredItems.map((item) => {
               const badgeStyle = getCategoryBadge(item.category);
               return (
-                <div
+                <button
+                  type="button"
                   key={item.id}
                   onClick={() => setActiveModal(item)}
-                  className="group cursor-pointer rounded-2xl bg-white border border-slate-200 hover:border-teal-400 hover:shadow-lg transition-all duration-300 shadow-xs overflow-hidden flex flex-col justify-between"
+                  aria-label={`View photo and details for ${item.title}`}
+                  className="group cursor-pointer rounded-2xl bg-white border border-slate-200 hover:border-teal-400 hover:shadow-lg transition-all duration-300 shadow-xs overflow-hidden flex flex-col justify-between text-left w-full"
                 >
                   <div>
                     {/* Cover photo with zoom effect */}
@@ -335,7 +337,7 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
                       Inspect →
                     </span>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -359,8 +361,10 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
                 title={activeModal.title} 
               />
               <button 
+                type="button"
                 onClick={() => setActiveModal(null)} 
-                className="absolute top-4 right-4 p-2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white transition shadow-lg"
+                aria-label="Close modal"
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white transition shadow-lg cursor-pointer"
                 title="Close Preview (Esc)"
               >
                 <X className="w-5 h-5" />
@@ -419,8 +423,9 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
                 </a>
 
                 <button
+                  type="button"
                   onClick={() => setActiveModal(null)}
-                  className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs"
+                  className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   Close
                 </button>

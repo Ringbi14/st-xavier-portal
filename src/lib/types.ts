@@ -68,17 +68,23 @@ export interface ResourceDocument {
 
 export type NoticeCategory = "Fieldwork" | "Exam" | "Rural Camp" | "General";
 
-export interface NoticeDocument {
+export interface NoticeItem {
   id: string;
   title: string;
   body: string;
+  description?: string; // Legacy fallback field
   fileUrl?: string;
+  attachmentUrl?: string; // Legacy fallback field
   category: NoticeCategory | string;
   publishedAt: any;
   updatedAt?: any;
   author?: string;
   date?: string; // Kept as optional for backwards compatibility
+  isPinned?: boolean;
+  isArchived?: boolean;
 }
+
+export type NoticeDocument = NoticeItem;
 
 export type DownloadCategory = "Fieldwork Forms" | "Syllabus" | "Camp Manuals" | "General Guidelines";
 export type DownloadProgram = "All" | "BSW";
@@ -108,10 +114,13 @@ export interface ShowcaseItem {
   title: string;
   category: ShowcaseCategory | string;
   academicYear: string;
+  year?: string;
   location: string;
   impactSummary?: string;
   description?: string;
   imageUrl: string;
+  photoUrl?: string;
+  publicUrl?: string;
   createdAt?: any;
   updatedAt?: any;
   galleryData?: any;
@@ -123,10 +132,16 @@ export interface FacultyMember {
   designation: string;
   specialization: string;
   email: string;
+  categoryTier?: "Department Faculty" | "College Leadership" | string;
   officeExtension?: string;
   qualification?: string;
+  qualifications?: string;
+  supervisoryRole?: string;
+  affiliation?: string;
   bio?: string;
   imageUrl?: string;
+  photoUrl?: string;
+  publicUrl?: string;
   createdAt?: any;
   updatedAt?: any;
 }

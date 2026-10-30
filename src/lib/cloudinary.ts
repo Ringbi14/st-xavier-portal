@@ -154,7 +154,6 @@ export async function openCloudinaryWidget({
     );
     console.error(err);
     if (onError) onError(err);
-    else alert(err.message);
     return;
   }
 
@@ -176,7 +175,7 @@ export async function openCloudinaryWidget({
         maxFileSize: 10485760, // 10MB
         sources: ["local", "url", "camera"],
       },
-      (error: any, result: any) => {
+      (error: { message?: string } | null, result: { event?: string; info?: { secure_url?: string; url?: string } }) => {
         if (error) {
           console.error("Cloudinary Widget error:", error);
           if (onError) onError(new Error(error.message || "Cloudinary Widget error"));
@@ -196,12 +195,10 @@ export async function openCloudinaryWidget({
     );
 
     widget.open();
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Failed to open Cloudinary widget:", err);
     if (onError) {
       onError(err instanceof Error ? err : new Error(String(err)));
-    } else {
-      alert(err.message || "Failed to open upload widget.");
     }
   }
 }

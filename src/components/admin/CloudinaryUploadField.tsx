@@ -33,7 +33,7 @@ export default function CloudinaryUploadField({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Please select a valid image file (PNG, JPG, WEBP).");
+      setUploadError("Please select a valid image file (PNG, JPG, WEBP).");
       return;
     }
 
@@ -42,9 +42,13 @@ export default function CloudinaryUploadField({
       setUploadError(null);
       const secureUrl = await uploadToCloudinary(file, folder);
       onChange(secureUrl);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Cloudinary direct upload failed:", err);
-      setUploadError(err.message || "Failed to upload to Cloudinary. You can still paste an image URL directly.");
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Failed to upload to Cloudinary. You can still paste an image URL directly.";
+      setUploadError(msg);
     } finally {
       setIsUploading(false);
       e.target.value = "";
@@ -118,6 +122,7 @@ export default function CloudinaryUploadField({
             onClick={() => onChange("")}
             className="p-2 text-slate-400 hover:text-rose-600 rounded-xl border border-slate-200 hover:border-rose-200 hover:bg-rose-50 transition cursor-pointer shrink-0"
             title="Clear Photo URL"
+            aria-label="Clear photo URL"
           >
             <X className="w-3.5 h-3.5" />
           </button>

@@ -43,17 +43,18 @@ export default function LoginPage() {
     try {
       await signInWithEmail(email.trim(), password);
       router.push("/admin");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Auth error:", err);
+      const authErr = err as { code?: string; message?: string };
 
       if (
-        err.code === "auth/invalid-credential" ||
-        err.code === "auth/user-not-found" ||
-        err.code === "auth/wrong-password"
+        authErr.code === "auth/invalid-credential" ||
+        authErr.code === "auth/user-not-found" ||
+        authErr.code === "auth/wrong-password"
       ) {
         setErrorMsg("Invalid credentials. Please verify your faculty email and password.");
       } else {
-        setErrorMsg(err.message || "Authentication failed. Please check your network connection.");
+        setErrorMsg(authErr.message || "Authentication failed. Please check your network connection.");
       }
     } finally {
       setLoading(false);
@@ -71,7 +72,7 @@ export default function LoginPage() {
       setResetSuccessMsg(
         `Password recovery link dispatched to ${resetEmail.trim()}. Please check your email inbox.`
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       setResetErrorMsg("Failed to dispatch reset email. Verify your address and try again.");
     } finally {
       setResetLoading(false);
@@ -215,8 +216,10 @@ export default function LoginPage() {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsResetOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+                aria-label="Close modal"
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

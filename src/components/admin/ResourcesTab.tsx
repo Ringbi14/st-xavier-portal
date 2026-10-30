@@ -22,9 +22,12 @@ import {
   Download,
   ExternalLink,
 } from "lucide-react";
+import { DownloadItem } from "@/lib/types";
+import { Toast, ToastType } from "@/components/ui/Toast";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 export default function ResourcesTab() {
-  const [downloads, setDownloads] = useState<any[]>([]);
+  const [downloads, setDownloads] = useState<DownloadItem[]>([]);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Fieldwork Forms");
   const [url, setUrl] = useState("");
@@ -32,11 +35,13 @@ export default function ResourcesTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, "downloads"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
-      setDownloads(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setDownloads(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as DownloadItem)));
     });
     return () => unsub();
   }, []);
@@ -50,7 +55,7 @@ export default function ResourcesTab() {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (item: any) => {
+  const openEditModal = (item: DownloadItem) => {
     setEditingId(item.id);
     setTitle(item.title || "");
     setCategory(item.category || "Fieldwork Forms");
@@ -62,7 +67,7 @@ export default function ResourcesTab() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !url.trim()) {
-      alert("Please provide the document title and downloadable file URL.");
+      setToast({ message: "Please provide the document title and downloadable file URL.", type: "error" });
       return;
     }
     setIsSubmitting(true);
@@ -81,30 +86,37 @@ export default function ResourcesTab() {
           ...payload,
           updatedAt: serverTimestamp(),
         });
+        setToast({ message: "Resource updated successfully.", type: "success" });
       } else {
         await addDoc(collection(db, "downloads"), {
           ...payload,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+        setToast({ message: "New resource added successfully.", type: "success" });
       }
 
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Resource save failed:", err);
-      alert("Failed to save resource. Please verify permissions.");
+      const msg = err instanceof Error ? err.message : "Failed to save resource. Please verify permissions.";
+      setToast({ message: msg, type: "error" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this resource document?")) return;
+  const executeDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteDoc(doc(db, "downloads", id));
-    } catch (err: any) {
+      await deleteDoc(doc(db, "downloads", deleteConfirmId));
+      setToast({ message: "Resource document deleted successfully.", type: "success" });
+    } catch (err: unknown) {
       console.error("Resource delete failed:", err);
-      alert(`Failed to delete resource: ${err?.message || err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      setToast({ message: `Failed to delete resource: ${msg}`, type: "error" });
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -187,9 +199,10 @@ export default function ResourcesTab() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(d.id)}
+                        onClick={() => setDeleteConfirmId(d.id)}
                         className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition cursor-pointer"
                         title="Delete Resource"
+                        aria-label={`Delete resource: ${d.title}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -213,6 +226,7 @@ export default function ResourcesTab() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Close modal"
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -299,6 +313,23 @@ export default function ResourcesTab() {
           </div>
         </div>
       )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Delete Resource Document"
+        message="Are you sure you want to permanently delete this resource document? It will no longer be available for student download."
+        confirmText="Delete Document"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </div>
   );
 }

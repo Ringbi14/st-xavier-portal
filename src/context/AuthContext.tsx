@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   User,
+  UserCredential,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
@@ -16,7 +17,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   isAdmin: boolean;
-  signInWithEmail: (email: string, pass: string) => Promise<any>;
+  signInWithEmail: (email: string, pass: string) => Promise<UserCredential>;
   logout: () => Promise<void>;
   refreshClaims: () => Promise<void>;
 }
@@ -26,7 +27,9 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   isAdmin: false,
-  signInWithEmail: async () => {},
+  signInWithEmail: async () => {
+    throw new Error("AuthProvider not mounted");
+  },
   logout: async () => {},
   refreshClaims: async () => {},
 });

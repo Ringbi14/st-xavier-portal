@@ -23,6 +23,9 @@ import {
 } from "lucide-react";
 import CloudinaryUploadField from "./CloudinaryUploadField";
 import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
+import { ShowcaseItem } from "@/lib/types";
+import { Toast, ToastType } from "@/components/ui/Toast";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 function AdminShowcaseImage({ imageUrl, title }: { imageUrl?: string; title: string }) {
   const [hasError, setHasError] = useState(false);
@@ -58,7 +61,7 @@ function AdminShowcaseImage({ imageUrl, title }: { imageUrl?: string; title: str
 }
 
 export default function GalleryTab() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<ShowcaseItem[]>([]);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Rural Camp");
   const [academicYear, setAcademicYear] = useState("2025-2026");
@@ -68,11 +71,13 @@ export default function GalleryTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, "gallery"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
-      setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as ShowcaseItem)));
     });
     return () => unsub();
   }, []);
@@ -88,21 +93,21 @@ export default function GalleryTab() {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (item: any) => {
-    setEditingId(item.id);
+  const openEditModal = (item: ShowcaseItem) => {
+    setEditingId(item.id || null);
     setTitle(item.title || "");
     setCategory(item.category || "Rural Camp");
-    setAcademicYear(item.academicYear || item.year || "2025-2026");
+    setAcademicYear(item.academicYear || "2025-2026");
     setLocation(item.location || "");
     setSummary(item.impactSummary || item.description || "");
-    setImageUrl(item.imageUrl || item.photoUrl || item.publicUrl || "");
+    setImageUrl(item.imageUrl || "");
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !imageUrl.trim() || !summary.trim()) {
-      alert("Please provide the initiative title, summary, and cover image URL.");
+      setToast({ message: "Please provide the initiative title, summary, and cover image URL.", type: "error" });
       return;
     }
     setIsSubmitting(true);
@@ -130,30 +135,37 @@ export default function GalleryTab() {
           ...payload,
           updatedAt: serverTimestamp(),
         });
+        setToast({ message: "Showcase highlight updated successfully.", type: "success" });
       } else {
         await addDoc(collection(db, "gallery"), {
           ...payload,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+        setToast({ message: "New showcase entry added successfully.", type: "success" });
       }
 
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Showcase save failed:", err);
-      alert("Failed to save showcase highlight. Please check console.");
+      const msg = err instanceof Error ? err.message : "Failed to save showcase highlight.";
+      setToast({ message: msg, type: "error" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this showcase entry?")) return;
+  const executeDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteDoc(doc(db, "gallery", id));
-    } catch (err: any) {
+      await deleteDoc(doc(db, "gallery", deleteConfirmId));
+      setToast({ message: "Showcase entry deleted successfully.", type: "success" });
+    } catch (err: unknown) {
       console.error("Showcase delete failed:", err);
-      alert(`Failed to delete showcase entry: ${err?.message || err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      setToast({ message: `Failed to delete showcase entry: ${msg}`, type: "error" });
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -227,9 +239,10 @@ export default function GalleryTab() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(item.id)}
+                  onClick={() => item.id && setDeleteConfirmId(item.id)}
                   className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition cursor-pointer"
                   title="Delete Entry"
+                  aria-label={`Delete showcase entry: ${item.title}`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -250,6 +263,7 @@ export default function GalleryTab() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Close modal"
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -359,6 +373,23 @@ export default function GalleryTab() {
           </div>
         </div>
       )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Delete Showcase Entry"
+        message="Are you sure you want to permanently delete this showcase highlight from the media gallery? This action cannot be undone."
+        confirmText="Delete Entry"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </div>
   );
 }

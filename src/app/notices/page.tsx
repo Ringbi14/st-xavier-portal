@@ -219,10 +219,12 @@ export default function NoticesPage() {
         {!loading && (
           <div className="space-y-3">
             {filteredNotices.map((notice) => (
-              <div
+              <button
+                type="button"
                 key={notice.id}
                 onClick={() => setActiveNotice(notice)}
-                className="group p-5 sm:p-6 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 hover:shadow-md transition cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs"
+                aria-label={`Read circular: ${notice.title}`}
+                className="group p-5 sm:p-6 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 hover:shadow-md transition cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs w-full text-left"
               >
                 <div className="space-y-2 flex-1">
                   
@@ -260,7 +262,7 @@ export default function NoticesPage() {
                   <span>Read Circular</span>
                   <ChevronRight className="w-4 h-4" />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}

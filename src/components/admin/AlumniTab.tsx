@@ -27,6 +27,8 @@ import { AlumniProfile, AlumniSector } from "@/lib/types";
 import CloudinaryUploadField from "./CloudinaryUploadField";
 import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
 import { normalizeBatchYear } from "@/lib/utils";
+import { Toast, ToastType } from "@/components/ui/Toast";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 function AdminAlumniAvatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
   const [hasError, setHasError] = useState(false);
@@ -85,9 +87,11 @@ export default function AlumniTab() {
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
-    let rawPublic: any[] = [];
+    let rawPublic: AlumniProfile[] = [];
     let rawPrivate: Record<string, string> = {};
 
     const mergeAndSet = () => {
@@ -129,20 +133,20 @@ export default function AlumniTab() {
       unsubPub = onSnapshot(
         q,
         (snap) => {
-          rawPublic = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          rawPublic = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AlumniProfile));
           mergeAndSet();
         },
         (err) => {
           console.warn("Ordered alumni snapshot error, falling back:", err);
           unsubPub = onSnapshot(pubCol, (snap) => {
-            rawPublic = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            rawPublic = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AlumniProfile));
             mergeAndSet();
           });
         }
       );
     } catch {
       unsubPub = onSnapshot(pubCol, (snap) => {
-        rawPublic = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        rawPublic = snap.docs.map((d) => ({ id: d.id, ...d.data() } as AlumniProfile));
         mergeAndSet();
       });
     }
@@ -219,14 +223,21 @@ export default function AlumniTab() {
         email: deleteField(),
         updatedAt: serverTimestamp(),
       });
-    } catch (err: any) {
+      setToast({ message: `Approved and published profile for ${name}.`, type: "success" });
+    } catch (err: unknown) {
       console.error("Approve failed:", err);
-      alert(`Failed to approve profile for ${name}: ${err?.message || err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      setToast({ message: `Failed to approve profile for ${name}: ${msg}`, type: "error" });
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to permanently delete profile for "${name}"?`)) return;
+  const promptDelete = (id: string, name: string) => {
+    setDeleteConfirm({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
+    const { id, name } = deleteConfirm;
     try {
       await deleteDoc(doc(db, "alumni", id));
       try {
@@ -234,16 +245,20 @@ export default function AlumniTab() {
       } catch {
         // ignore if private record does not exist
       }
-    } catch (err: any) {
+      setToast({ message: `Profile for "${name}" deleted permanently.`, type: "success" });
+    } catch (err: unknown) {
       console.error("Delete failed:", err);
-      alert(`Failed to delete alumni profile: ${err?.message || err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      setToast({ message: `Failed to delete alumni profile: ${msg}`, type: "error" });
+    } finally {
+      setDeleteConfirm(null);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim() || !batchYear.trim() || !currentRole.trim() || !organization.trim() || !email.trim()) {
-      alert("Please provide the full name, graduating batch, current role, organization, and email.");
+      setToast({ message: "Please provide the full name, graduating batch, current role, organization, and email.", type: "error" });
       return;
     }
     setIsSubmitting(true);
@@ -307,12 +322,18 @@ export default function AlumniTab() {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+        setToast({ message: "New alumni profile created successfully.", type: "success" });
+      }
+
+      if (editingId) {
+        setToast({ message: "Alumni profile updated successfully.", type: "success" });
       }
 
       setIsModalOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to save alumni profile:", err);
-      alert(`Failed to save alumni profile: ${err?.message || err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      setToast({ message: `Failed to save alumni profile: ${msg}`, type: "error" });
     } finally {
       setIsSubmitting(false);
     }
@@ -425,8 +446,9 @@ export default function AlumniTab() {
                 <div className="pt-3 border-t border-amber-200 flex items-center justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => handleDelete(item.id, item.fullName)}
+                    onClick={() => promptDelete(item.id, item.fullName)}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold transition cursor-pointer"
+                    aria-label={`Reject or delete profile for ${item.fullName}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Reject / Delete</span>
@@ -537,9 +559,10 @@ export default function AlumniTab() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(item.id, item.fullName)}
+                          onClick={() => promptDelete(item.id, item.fullName)}
                           className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition cursor-pointer"
                           title="Delete Profile"
+                          aria-label={`Delete profile for ${item.fullName}`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -568,8 +591,10 @@ export default function AlumniTab() {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-white"
+                aria-label="Close modal"
+                className="p-1 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -646,7 +671,7 @@ export default function AlumniTab() {
                   </label>
                   <select
                     value={sector}
-                    onChange={(e) => setSector(e.target.value as any)}
+                    onChange={(e) => setSector(e.target.value as AlumniSector)}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 font-semibold"
                   >
                     <option value="Public Sector">Public Sector / Government</option>
@@ -759,6 +784,22 @@ export default function AlumniTab() {
         </div>
       )}
 
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={!!deleteConfirm}
+        title="Delete Alumni Profile"
+        message={`Are you sure you want to permanently delete the profile for "${deleteConfirm?.name || "this alumnus"}"? This action cannot be undone.`}
+        confirmText="Delete Profile"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }

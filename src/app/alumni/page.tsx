@@ -15,6 +15,7 @@ import {
 import { AlumniProfile, AlumniSector } from "@/lib/types";
 import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
 import { normalizeBatchYear } from "@/lib/utils";
+import { InlineBanner } from "@/components/ui/Toast";
 import {
   GraduationCap,
   Sparkles,
@@ -279,6 +280,7 @@ export default function AlumniPage() {
                 onClick={() => setSearchQuery("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                 title="Clear search"
+                aria-label="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -586,8 +588,10 @@ export default function AlumniPage() {
             </p>
           </div>
           <button
+            type="button"
             onClick={() => setSubmitSuccess(false)}
-            className="p-1 rounded text-slate-400 hover:text-white"
+            aria-label="Close notification"
+            className="p-1 rounded text-slate-400 hover:text-white cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -622,6 +626,7 @@ function AlumniSubmissionModal({
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Cloudinary Direct Upload
@@ -630,7 +635,7 @@ function AlumniSubmissionModal({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Please select a valid image file (PNG, JPG, WEBP).");
+      setUploadError("Please select a valid image file (PNG, JPG, WEBP).");
       return;
     }
 
@@ -641,7 +646,6 @@ function AlumniSubmissionModal({
       const errMsg = "Cloudinary environment variables (NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET) are required for photo upload.";
       console.error(errMsg);
       setUploadError(errMsg);
-      alert(errMsg);
       return;
     }
 
@@ -684,9 +688,10 @@ function AlumniSubmissionModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim() || !batchYear.trim() || !currentRole.trim() || !organization.trim() || !email.trim()) {
-      alert("Please fill in your name, graduating batch, current role, organization, and email.");
+      setFormError("Please fill in your name, graduating batch, current role, organization, and email.");
       return;
     }
+    setFormError(null);
 
     try {
       setIsSubmitting(true);
@@ -729,9 +734,10 @@ function AlumniSubmissionModal({
       });
 
       onSubmitted();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to submit alumni profile:", err);
-      alert(`Submission failed: ${err?.message || "Please check your network and submission fields."}`);
+      const msg = err instanceof Error ? err.message : "Please check your network and submission fields.";
+      setFormError(`Submission failed: ${msg}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -757,8 +763,10 @@ function AlumniSubmissionModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition"
+            aria-label="Close modal"
+            className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -766,6 +774,13 @@ function AlumniSubmissionModal({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+          {formError && (
+            <InlineBanner
+              message={formError}
+              type="error"
+              onClose={() => setFormError(null)}
+            />
+          )}
           
           <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-2">
             <HeartHandshake className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />

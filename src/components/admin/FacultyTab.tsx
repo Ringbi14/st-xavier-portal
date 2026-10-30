@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import CloudinaryUploadField from "./CloudinaryUploadField";
 import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
+import { FacultyMember } from "@/lib/types";
+import { Toast, ToastType } from "@/components/ui/Toast";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 function AdminFacultyAvatar({ name, imageUrl }: { name: string; imageUrl?: string }) {
   const [hasError, setHasError] = useState(false);
@@ -63,7 +66,7 @@ function AdminFacultyAvatar({ name, imageUrl }: { name: string; imageUrl?: strin
 }
 
 export default function FacultyTab() {
-  const [faculty, setFaculty] = useState<any[]>([]);
+  const [faculty, setFaculty] = useState<FacultyMember[]>([]);
   const [categoryTier, setCategoryTier] = useState<"Department Faculty" | "College Leadership">("Department Faculty");
   const [name, setName] = useState("");
   const [designation, setDesignation] = useState("");
@@ -75,11 +78,13 @@ export default function FacultyTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, "faculty"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
-      setFaculty(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setFaculty(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as FacultyMember)));
     });
     return () => unsub();
   }, []);
@@ -97,23 +102,25 @@ export default function FacultyTab() {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (item: any) => {
-    setEditingId(item.id);
-    setCategoryTier(item.categoryTier || "Department Faculty");
+  const openEditModal = (item: FacultyMember) => {
+    setEditingId(item.id || null);
+    setCategoryTier(
+      item.categoryTier === "College Leadership" ? "College Leadership" : "Department Faculty"
+    );
     setName(item.name || "");
     setDesignation(item.designation || "");
     setSpecialization(item.specialization || "");
     setEmail(item.email || "");
-    setImageUrl(item.imageUrl || item.photoUrl || "");
+    setImageUrl(item.imageUrl || "");
     setQualification(item.qualification || "");
-    setSupervisoryRole(item.supervisoryRole || "");
+    setSupervisoryRole((item as { supervisoryRole?: string }).supervisoryRole || "");
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !designation.trim()) {
-      alert("Please provide the full name and designation.");
+      setToast({ message: "Please provide the full name and designation.", type: "error" });
       return;
     }
     setIsSubmitting(true);
@@ -140,30 +147,37 @@ export default function FacultyTab() {
           ...payload,
           updatedAt: serverTimestamp(),
         });
+        setToast({ message: "Faculty profile updated successfully.", type: "success" });
       } else {
         await addDoc(collection(db, "faculty"), {
           ...payload,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+        setToast({ message: "New faculty profile created successfully.", type: "success" });
       }
 
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Faculty save failed:", err);
-      alert("Failed to save faculty profile.");
+      const msg = err instanceof Error ? err.message : "Failed to save faculty profile.";
+      setToast({ message: msg, type: "error" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this profile?")) return;
+  const executeDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteDoc(doc(db, "faculty", id));
-    } catch (err: any) {
+      await deleteDoc(doc(db, "faculty", deleteConfirmId));
+      setToast({ message: "Profile deleted successfully.", type: "success" });
+    } catch (err: unknown) {
       console.error("Faculty delete failed:", err);
-      alert(`Failed to delete faculty profile: ${err?.message || err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      setToast({ message: `Failed to delete profile: ${msg}`, type: "error" });
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -269,9 +283,10 @@ export default function FacultyTab() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(f.id)}
+                        onClick={() => f.id && setDeleteConfirmId(f.id)}
                         className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition cursor-pointer"
                         title="Delete Profile"
+                        aria-label={`Delete profile: ${f.name}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -295,6 +310,7 @@ export default function FacultyTab() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Close modal"
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -309,7 +325,11 @@ export default function FacultyTab() {
                   </label>
                   <select
                     value={categoryTier}
-                    onChange={(e) => setCategoryTier(e.target.value as any)}
+                    onChange={(e) =>
+                      setCategoryTier(
+                        e.target.value as "Department Faculty" | "College Leadership"
+                      )
+                    }
                     className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-700/20 focus:border-teal-700"
                   >
                     <option value="Department Faculty">Department Faculty</option>
@@ -433,6 +453,23 @@ export default function FacultyTab() {
           </div>
         </div>
       )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Delete Faculty Profile"
+        message="Are you sure you want to permanently delete this faculty member from the directory? This action cannot be undone."
+        confirmText="Delete Profile"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </div>
   );
 }

@@ -286,6 +286,7 @@ export default function NoticeBoard() {
                         author: notice.author,
                       })
                     }
+                    aria-label={`View details for notice: ${notice.title}`}
                     className="text-[11px] font-semibold text-slate-400 hover:text-teal-700 transition cursor-pointer"
                   >
                     Details →

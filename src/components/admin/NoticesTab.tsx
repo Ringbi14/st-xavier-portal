@@ -21,9 +21,12 @@ import {
   X,
   Download,
 } from "lucide-react";
+import { NoticeItem } from "@/lib/types";
+import { Toast, ToastType } from "@/components/ui/Toast";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 export default function NoticesTab() {
-  const [notices, setNotices] = useState<any[]>([]);
+  const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [title, setTitle] = useState("");
   const [publishedAt, setPublishedAt] = useState(new Date().toISOString().split("T")[0]);
   const [category, setCategory] = useState("Fieldwork");
@@ -33,18 +36,20 @@ export default function NoticesTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, "notices"), orderBy("publishedAt", "desc"));
     const unsub = onSnapshot(
       q,
       (snapshot) => {
-        setNotices(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setNotices(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as NoticeItem)));
       },
       (err) => {
         console.warn("Ordered notices fetch fell back:", err);
         const fallbackUnsub = onSnapshot(collection(db, "notices"), (snap) => {
-          setNotices(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+          setNotices(snap.docs.map((d) => ({ id: d.id, ...d.data() } as NoticeItem)));
         });
         return () => fallbackUnsub();
       }
@@ -63,7 +68,7 @@ export default function NoticesTab() {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (item: any) => {
+  const openEditModal = (item: NoticeItem) => {
     setEditingId(item.id);
     setTitle(item.title || "");
     setPublishedAt(item.publishedAt || item.date || new Date().toISOString().split("T")[0]);
@@ -77,13 +82,13 @@ export default function NoticesTab() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !body.trim()) {
-      alert("Please enter both the notice headline and circular body text.");
+      setToast({ message: "Please enter both the notice headline and circular body text.", type: "error" });
       return;
     }
     setIsSubmitting(true);
 
     try {
-      const payload: any = {
+      const payload: Partial<NoticeItem> & { updatedAt: any; createdAt?: any } = {
         title: title.trim(),
         publishedAt: publishedAt || new Date().toISOString().split("T")[0],
         category,
@@ -97,29 +102,36 @@ export default function NoticesTab() {
 
       if (editingId) {
         await updateDoc(doc(db, "notices", editingId), payload);
+        setToast({ message: "Circular notice updated successfully.", type: "success" });
       } else {
         await addDoc(collection(db, "notices"), {
           ...payload,
           createdAt: serverTimestamp(),
         });
+        setToast({ message: "New circular notice published successfully.", type: "success" });
       }
 
       setIsModalOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Notice save failed:", err);
-      alert(`Failed to save circular: ${err?.message || "Please verify permissions."}`);
+      const msg = err instanceof Error ? err.message : "Please verify permissions.";
+      setToast({ message: `Failed to save circular: ${msg}`, type: "error" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this circular notice?")) return;
+  const executeDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteDoc(doc(db, "notices", id));
-    } catch (err: any) {
+      await deleteDoc(doc(db, "notices", deleteConfirmId));
+      setToast({ message: "Circular notice deleted successfully.", type: "success" });
+    } catch (err: unknown) {
       console.error("Notice delete failed:", err);
-      alert(`Failed to delete circular: ${err?.message || err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      setToast({ message: `Failed to delete circular: ${msg}`, type: "error" });
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -212,9 +224,10 @@ export default function NoticesTab() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(n.id)}
+                        onClick={() => setDeleteConfirmId(n.id)}
                         className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition cursor-pointer"
                         title="Delete Notice"
+                        aria-label={`Delete notice: ${n.title}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -238,6 +251,7 @@ export default function NoticesTab() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Close modal"
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -350,6 +364,23 @@ export default function NoticesTab() {
           </div>
         </div>
       )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Delete Circular Notice"
+        message="Are you sure you want to delete this circular notice? It will no longer be visible on the public portal."
+        confirmText="Delete Notice"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </div>
   );
 }

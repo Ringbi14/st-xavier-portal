@@ -11,18 +11,9 @@ import {
   ShieldCheck,
   Tag,
 } from "lucide-react";
+import { NoticeItem } from "@/lib/types";
 
-export interface NoticeItem {
-  id: string;
-  title: string;
-  body: string;
-  fileUrl?: string;
-  category: "Fieldwork" | "Exam" | "Rural Camp" | "General" | string;
-  publishedAt?: any;
-  updatedAt?: any;
-  author?: string;
-  date?: string; // Optional backwards compatibility
-}
+export type { NoticeItem };
 
 interface NoticeModalProps {
   notice: NoticeItem | null;
@@ -109,8 +100,8 @@ export default function NoticeModal({ notice, onClose }: NoticeModalProps) {
 
   if (!notice) return null;
 
-  const attachment = notice.fileUrl;
-  const contentText = notice.body || "No full description provided for this circular.";
+  const attachment = notice.fileUrl || notice.attachmentUrl;
+  const contentText = notice.body || notice.description || "No full description provided for this circular.";
   const displayDate = notice.publishedAt || notice.date;
   const issuingAuthor = notice.author || "Department of Social Work, SXC Maram";
 

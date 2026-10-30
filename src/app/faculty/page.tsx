@@ -5,6 +5,7 @@ import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
+import { FacultyMember } from "@/lib/types";
 import {
   Users,
   Building2,
@@ -29,19 +30,6 @@ interface LeadershipMember {
   affiliation: string;
   imageUrl?: string;
   roleNote?: string;
-}
-
-interface FacultyMember {
-  id: string;
-  name: string;
-  designation: string;
-  qualification?: string;
-  specialization: string;
-  supervisoryRole?: string;
-  email: string;
-  officeExtension?: string;
-  imageUrl?: string;
-  bio?: string;
 }
 
 const COLLEGE_LEADERSHIP: LeadershipMember[] = [
@@ -158,19 +146,19 @@ export default function FacultyPage() {
       try {
         setLoading(true);
         const colRef = collection(db, "faculty");
-        let rawDocs: any[] = [];
+        let rawDocs: FacultyMember[] = [];
 
         try {
           const q = query(colRef, orderBy("createdAt", "desc"), limit(30));
           const snap = await getDocs(q);
           if (!snap.empty) {
-            rawDocs = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+            rawDocs = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as FacultyMember));
           }
         } catch (queryErr) {
           console.warn("Ordered faculty query fell back:", queryErr);
           const fallbackSnap = await getDocs(query(colRef, limit(30)));
           if (!fallbackSnap.empty) {
-            rawDocs = fallbackSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+            rawDocs = fallbackSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as FacultyMember));
           }
         }
 
@@ -181,7 +169,7 @@ export default function FacultyPage() {
           if (leadershipFromDb.length > 0) {
             setLeadershipList(
               leadershipFromDb.map((d) => ({
-                id: d.id,
+                id: d.id || "",
                 name: d.name || "Leadership Member",
                 qualifications: d.qualification || "",
                 designation: d.designation || "College Executive",
@@ -195,7 +183,7 @@ export default function FacultyPage() {
           if (facultyFromDb.length > 0) {
             setFacultyList(
               facultyFromDb.map((d) => ({
-                id: d.id,
+                id: d.id || "",
                 name: d.name || "Faculty Member",
                 designation: d.designation || "Assistant Professor",
                 qualification: d.qualification,

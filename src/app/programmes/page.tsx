@@ -632,7 +632,9 @@ export default function ProgrammesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 relative">
             <button
+              type="button"
               onClick={() => setShowSyllabusModal(false)}
+              aria-label="Close modal"
               className="absolute top-5 right-5 p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             >
               <X className="w-5 h-5" />

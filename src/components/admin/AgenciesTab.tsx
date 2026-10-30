@@ -23,9 +23,12 @@ import {
   Phone,
   Globe,
 } from "lucide-react";
+import { AgencyItem } from "@/lib/types";
+import { Toast, ToastType } from "@/components/ui/Toast";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 export default function AgenciesTab() {
-  const [agencies, setAgencies] = useState<any[]>([]);
+  const [agencies, setAgencies] = useState<AgencyItem[]>([]);
   const [name, setName] = useState("");
   const [domain, setDomain] = useState("Community Development");
   const [location, setLocation] = useState("");
@@ -35,11 +38,13 @@ export default function AgenciesTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, "agencies"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
-      setAgencies(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setAgencies(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as AgencyItem)));
     });
     return () => unsub();
   }, []);
@@ -55,10 +60,10 @@ export default function AgenciesTab() {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (item: any) => {
-    setEditingId(item.id);
+  const openEditModal = (item: AgencyItem) => {
+    setEditingId(item.id || null);
     setName(item.name || "");
-    setDomain(item.domain || item.sector || "Community Development");
+    setDomain(item.domain || "Community Development");
     setLocation(item.location || "");
     setPhone(item.phone || "");
     setWebsite(item.website || "");
@@ -69,7 +74,7 @@ export default function AgenciesTab() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !location.trim() || !description.trim()) {
-      alert("Please provide the organization name, location, and a short description.");
+      setToast({ message: "Please provide the organization name, location, and a short description.", type: "error" });
       return;
     }
     setIsSubmitting(true);
@@ -90,30 +95,37 @@ export default function AgenciesTab() {
           ...payload,
           updatedAt: serverTimestamp(),
         });
+        setToast({ message: "Agency profile updated successfully.", type: "success" });
       } else {
         await addDoc(collection(db, "agencies"), {
           ...payload,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+        setToast({ message: "New partner agency added successfully.", type: "success" });
       }
 
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Agency save failed:", err);
-      alert("Failed to save agency profile.");
+      const msg = err instanceof Error ? err.message : "Failed to save agency profile.";
+      setToast({ message: msg, type: "error" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this placement partner organization?")) return;
+  const executeDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteDoc(doc(db, "agencies", id));
-    } catch (err: any) {
+      await deleteDoc(doc(db, "agencies", deleteConfirmId));
+      setToast({ message: "Partner agency deleted successfully.", type: "success" });
+    } catch (err: unknown) {
       console.error("Agency delete failed:", err);
-      alert(`Failed to delete partner agency: ${err?.message || err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      setToast({ message: `Failed to delete partner agency: ${msg}`, type: "error" });
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -216,9 +228,10 @@ export default function AgenciesTab() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(a.id)}
+                        onClick={() => a.id && setDeleteConfirmId(a.id)}
                         className="p-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition cursor-pointer"
                         title="Delete Organization"
+                        aria-label={`Delete organization: ${a.name}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -242,6 +255,7 @@ export default function AgenciesTab() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Close modal"
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -358,6 +372,23 @@ export default function AgenciesTab() {
           </div>
         </div>
       )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Delete Partner Organization"
+        message="Are you sure you want to permanently delete this placement partner agency? This action cannot be undone."
+        confirmText="Delete Organization"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </div>
   );
 }
