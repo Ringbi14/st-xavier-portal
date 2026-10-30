@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Loader2,
   Users,
+  ShieldCheck,
 } from "lucide-react";
 
 import NoticesTab from "@/components/admin/NoticesTab";
@@ -22,8 +23,9 @@ import GalleryTab from "@/components/admin/GalleryTab";
 import AgenciesTab from "@/components/admin/AgenciesTab";
 import FacultyTab from "@/components/admin/FacultyTab";
 import AlumniTab from "@/components/admin/AlumniTab";
+import StaffAccessTab from "@/components/admin/StaffAccessTab";
 
-type AdminTab = "notices" | "resources" | "showcase" | "agencies" | "faculty" | "alumni";
+type AdminTab = "notices" | "resources" | "showcase" | "agencies" | "faculty" | "alumni" | "staff";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -134,6 +136,12 @@ export default function AdminPage() {
           icon={<Users className="w-4 h-4" />}
           label="6. Alumni Network"
         />
+        <TabButton
+          active={activeTab === "staff"}
+          onClick={() => setActiveTab("staff")}
+          icon={<ShieldCheck className="w-4 h-4" />}
+          label="7. Admin Accounts"
+        />
       </div>
 
       {/* ========================================================= */}
@@ -146,6 +154,7 @@ export default function AdminPage() {
         {activeTab === "agencies" && <AgenciesTab />}
         {activeTab === "faculty" && <FacultyTab />}
         {activeTab === "alumni" && <AlumniTab />}
+        {activeTab === "staff" && <StaffAccessTab />}
       </div>
 
     </div>
