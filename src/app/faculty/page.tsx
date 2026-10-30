@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
 import {
   Users,
   Building2,
@@ -119,12 +120,15 @@ function FacultyAvatar({
   const cleanUrl = imageUrl?.trim();
 
   if (cleanUrl && !hasError) {
+    const optimized = optimizeCloudinaryUrl(cleanUrl, 400);
     return (
       <div className={`relative ${sizeClasses} overflow-hidden bg-slate-100 shrink-0 border border-slate-200 shadow-xs`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={cleanUrl}
+          src={optimized}
           alt={name}
+          loading="lazy"
+          decoding="async"
           onError={() => setHasError(true)}
           className="w-full h-full object-cover"
         />

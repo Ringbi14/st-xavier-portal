@@ -7,13 +7,14 @@ import {
   collection,
   query,
   where,
-  addDoc,
+  getDocs,
   serverTimestamp,
-  onSnapshot,
   doc,
   setDoc,
 } from "firebase/firestore";
 import { AlumniProfile, AlumniSector } from "@/lib/types";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
+import { normalizeBatchYear } from "@/lib/utils";
 import {
   GraduationCap,
   Sparkles,
@@ -70,12 +71,15 @@ function AlumniAvatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
   }, [cleanUrl]);
 
   if (cleanUrl && !hasError) {
+    const optimized = optimizeCloudinaryUrl(cleanUrl, 300);
     return (
       <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 shadow-xs">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={cleanUrl}
+          src={optimized}
           alt={name}
+          loading="lazy"
+          decoding="async"
           onError={() => setHasError(true)}
           className="w-full h-full object-cover"
         />
@@ -100,53 +104,36 @@ export default function AlumniPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
+  const fetchAlumni = async () => {
     setLoading(true);
-
     try {
       const colRef = collection(db, "alumni");
       const q = query(colRef, where("status", "==", "approved"));
-      const unsubscribe = onSnapshot(
-        q,
-        (snap) => {
-          if (!isMounted) return;
-          if (!snap.empty) {
-            const list: AlumniProfile[] = snap.docs.map((doc) => ({
-              id: doc.id,
-              ...(doc.data() as Omit<AlumniProfile, "id">),
-            }));
-            setAlumni(list);
-          } else {
-            setAlumni([]);
-          }
-          setLoading(false);
-        },
-        (err) => {
-          console.warn("Firestore snapshot error fetching alumni:", err);
-          if (isMounted) {
-            setAlumni([]);
-            setLoading(false);
-          }
-        }
-      );
-
-      return () => {
-        isMounted = false;
-        unsubscribe();
-      };
-    } catch (err) {
-      console.warn("Firestore initialization error:", err);
-      if (isMounted) {
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const list: AlumniProfile[] = snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<AlumniProfile, "id">),
+        }));
+        setAlumni(list);
+      } else {
         setAlumni([]);
-        setLoading(false);
       }
+    } catch (err) {
+      console.warn("Firestore error fetching alumni:", err);
+      setAlumni([]);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchAlumni();
   }, []);
 
   // Dynamically extract unique available graduating batches from approved profiles
   const dynamicBatches = Array.from(
-    new Set(alumni.map((item) => item.batchYear?.trim()))
+    new Set(alumni.map((item) => normalizeBatchYear(item.batchYear || "")))
   )
     .filter((b): b is string => Boolean(b))
     .sort()
@@ -157,8 +144,9 @@ export default function AlumniPage() {
     .filter((item) => {
       const matchesSector =
         selectedSector === "All" || item.sector === selectedSector;
+      const normalizedItemBatch = normalizeBatchYear(item.batchYear || "");
       const matchesBatch =
-        selectedBatch === "all" || item.batchYear?.trim() === selectedBatch;
+        selectedBatch === "all" || normalizedItemBatch === selectedBatch;
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         q === "" ||
@@ -171,8 +159,8 @@ export default function AlumniPage() {
       return matchesSector && matchesBatch && matchesSearch;
     })
     .sort((a, b) => {
-      const batchA = (a.batchYear || "").trim();
-      const batchB = (b.batchYear || "").trim();
+      const batchA = normalizeBatchYear(a.batchYear || "");
+      const batchB = normalizeBatchYear(b.batchYear || "");
       return batchB.localeCompare(batchA, undefined, { numeric: true });
     });
 
@@ -582,6 +570,7 @@ export default function AlumniPage() {
           onSubmitted={() => {
             setSubmitSuccess(true);
             setIsModalOpen(false);
+            fetchAlumni();
           }}
         />
       )}
@@ -712,10 +701,11 @@ function AlumniSubmissionModal({
       }
 
       const newAlumRef = doc(collection(db, "alumni"));
+      const normalizedBatch = normalizeBatchYear(batchYear);
 
       const publicPayload = {
         fullName: fullName.trim(),
-        batchYear: batchYear.trim(),
+        batchYear: normalizedBatch,
         currentRole: currentRole.trim(),
         organization: organization.trim(),
         sector: sector || "Public Sector",
@@ -807,6 +797,7 @@ function AlumniSubmissionModal({
                 type="text"
                 value={batchYear}
                 onChange={(e) => setBatchYear(e.target.value)}
+                onBlur={() => setBatchYear(normalizeBatchYear(batchYear))}
                 placeholder="e.g., 2021–2024 or 2024"
                 maxLength={20}
                 required
@@ -939,7 +930,13 @@ function AlumniSubmissionModal({
               <div className="flex items-center gap-3 pt-1">
                 <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-200 border border-slate-300 shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <img
+                    src={optimizeCloudinaryUrl(photoUrl, 300)}
+                    alt="Preview"
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />

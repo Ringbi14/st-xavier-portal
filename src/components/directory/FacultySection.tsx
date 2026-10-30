@@ -15,6 +15,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import Link from "next/link";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
 
 const DEFAULT_FACULTY_FALLBACK: FacultyMember[] = [
   {
@@ -65,12 +66,15 @@ function DirectoryAvatar({ name, imageUrl }: { name: string; imageUrl?: string }
   const initials = words.length >= 2 ? (words[0][0] + words[words.length - 1][0]).toUpperCase() : cleanName.slice(0, 2).toUpperCase() || "SX";
 
   if (cleanUrl && !hasError) {
+    const optimized = optimizeCloudinaryUrl(cleanUrl, 400);
     return (
       <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-200 overflow-hidden shrink-0 shadow-xs group-hover:scale-105 transition-transform duration-300">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={cleanUrl}
+          src={optimized}
           alt={name}
+          loading="lazy"
+          decoding="async"
           onError={() => setHasError(true)}
           className="w-full h-full object-cover"
         />

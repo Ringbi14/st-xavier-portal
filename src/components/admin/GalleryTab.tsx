@@ -22,6 +22,7 @@ import {
   MapPin,
 } from "lucide-react";
 import CloudinaryUploadField from "./CloudinaryUploadField";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
 
 function AdminShowcaseImage({ imageUrl, title }: { imageUrl?: string; title: string }) {
   const [hasError, setHasError] = useState(false);
@@ -32,11 +33,14 @@ function AdminShowcaseImage({ imageUrl, title }: { imageUrl?: string; title: str
   }, [cleanUrl]);
 
   if (cleanUrl && !hasError) {
+    const optimized = optimizeCloudinaryUrl(cleanUrl, 300);
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={cleanUrl}
+        src={optimized}
         alt={title}
+        loading="lazy"
+        decoding="async"
         onError={() => setHasError(true)}
         className="w-full h-full object-cover"
       />

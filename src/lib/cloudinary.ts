@@ -27,6 +27,26 @@ export interface CloudinaryUploadOptions {
 }
 
 /**
+ * Optimizes Cloudinary image delivery on low-bandwidth networks
+ * by applying auto format, auto quality, and width bounds.
+ */
+export function optimizeCloudinaryUrl(url?: string, width: number = 600): string {
+  if (!url || typeof url !== "string") return url || "";
+  if (!url.includes("res.cloudinary.com")) return url;
+
+  // If transformations (f_auto or q_auto) are already present, do not re-transform
+  if (url.includes("/f_auto") || url.includes("/q_auto")) return url;
+
+  const uploadIndex = url.indexOf("/upload/");
+  if (uploadIndex === -1) return url;
+
+  const prefix = url.slice(0, uploadIndex + "/upload/".length);
+  const suffix = url.slice(uploadIndex + "/upload/".length);
+
+  return `${prefix}f_auto,q_auto,c_limit,w_${width}/${suffix}`;
+}
+
+/**
  * Direct file upload to Cloudinary via REST API.
  * Returns the secure HTTPS URL on completion.
  */

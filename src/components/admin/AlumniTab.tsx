@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { AlumniProfile, AlumniSector } from "@/lib/types";
 import CloudinaryUploadField from "./CloudinaryUploadField";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
+import { normalizeBatchYear } from "@/lib/utils";
 
 function AdminAlumniAvatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
   const [hasError, setHasError] = useState(false);
@@ -39,8 +41,10 @@ function AdminAlumniAvatar({ name, photoUrl }: { name: string; photoUrl?: string
       <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={cleanUrl}
+          src={optimizeCloudinaryUrl(cleanUrl, 300)}
           alt={name}
+          loading="lazy"
+          decoding="async"
           onError={() => setHasError(true)}
           className="w-full h-full object-cover"
         />
@@ -256,7 +260,7 @@ export default function AlumniTab() {
 
       const publicPayload = {
         fullName: fullName.trim(),
-        batchYear: batchYear.trim(),
+        batchYear: normalizeBatchYear(batchYear),
         currentRole: currentRole.trim(),
         organization: organization.trim(),
         sector: sector || "Public Sector",
@@ -596,6 +600,7 @@ export default function AlumniTab() {
                     type="text"
                     value={batchYear}
                     onChange={(e) => setBatchYear(e.target.value)}
+                    onBlur={() => setBatchYear(normalizeBatchYear(batchYear))}
                     placeholder="e.g., 2021–2024 or 2024"
                     maxLength={20}
                     required

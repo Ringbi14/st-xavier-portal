@@ -17,6 +17,7 @@ import {
   Filter
 } from "lucide-react";
 import Link from "next/link";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
 
 const CATEGORY_TABS: { label: string; value: string }[] = [
   { label: "All Highlights", value: "All" },
@@ -35,11 +36,14 @@ function ShowcaseCardImage({ imageUrl, title }: { imageUrl?: string; title: stri
   }, [cleanUrl]);
 
   if (cleanUrl && !hasError) {
+    const optimized = optimizeCloudinaryUrl(cleanUrl, 800);
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={cleanUrl}
+        src={optimized}
         alt={title}
+        loading="lazy"
+        decoding="async"
         onError={() => setHasError(true)}
         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
       />
@@ -70,11 +74,13 @@ function ShowcaseModalImage({ imageUrl, title }: { imageUrl?: string; title: str
   }, [cleanUrl]);
 
   if (cleanUrl && !hasError) {
+    const optimized = optimizeCloudinaryUrl(cleanUrl, 1200);
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={cleanUrl}
+        src={optimized}
         alt={title}
+        decoding="async"
         onError={() => setHasError(true)}
         className="max-h-[60vh] w-auto max-w-full object-contain"
       />

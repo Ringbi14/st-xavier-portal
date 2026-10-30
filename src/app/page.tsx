@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
 import {
   Building2,
   ExternalLink,
@@ -47,11 +48,14 @@ function HomeHighlightImage({ imageUrl, title }: { imageUrl?: string; title: str
   }, [cleanUrl]);
 
   if (cleanUrl && !hasError) {
+    const optimized = optimizeCloudinaryUrl(cleanUrl, 800);
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={cleanUrl}
+        src={optimized}
         alt={title}
+        loading="lazy"
+        decoding="async"
         onError={() => setHasError(true)}
         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
       />

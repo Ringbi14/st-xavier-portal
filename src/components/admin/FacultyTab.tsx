@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import CloudinaryUploadField from "./CloudinaryUploadField";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
 
 function AdminFacultyAvatar({ name, imageUrl }: { name: string; imageUrl?: string }) {
   const [hasError, setHasError] = useState(false);
@@ -38,12 +39,15 @@ function AdminFacultyAvatar({ name, imageUrl }: { name: string; imageUrl?: strin
   const initials = words.length >= 2 ? (words[0][0] + words[words.length - 1][0]).toUpperCase() : cleanName.slice(0, 2).toUpperCase() || "SX";
 
   if (cleanUrl && !hasError) {
+    const optimized = optimizeCloudinaryUrl(cleanUrl, 300);
     return (
       <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={cleanUrl}
+          src={optimized}
           alt={name}
+          loading="lazy"
+          decoding="async"
           onError={() => setHasError(true)}
           className="w-full h-full object-cover"
         />
