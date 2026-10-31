@@ -743,15 +743,31 @@ function AlumniSubmissionModal({
         createdAt: serverTimestamp(),
       };
 
+      const submissionData = {
+        ...publicPayload,
+        email: email.trim().toLowerCase().slice(0, 150),
+      };
+      console.log("ALUMNI PAYLOAD:", { ...submissionData });
+
       // 1. Write public profile document without email
-      await setDoc(newAlumRef, publicPayload);
+      try {
+        await setDoc(newAlumRef, publicPayload);
+      } catch (error) {
+        console.error("FIRESTORE REJECTION:", error);
+        throw error;
+      }
 
       // 2. Write private contact record for departmental verification only
-      await setDoc(doc(db, "alumni_private", newAlumRef.id), {
-        email: email.trim().toLowerCase().slice(0, 150),
-        fullName: fullName.trim().slice(0, 100),
-        createdAt: serverTimestamp(),
-      });
+      try {
+        await setDoc(doc(db, "alumni_private", newAlumRef.id), {
+          email: email.trim().toLowerCase().slice(0, 150),
+          fullName: fullName.trim().slice(0, 100),
+          createdAt: serverTimestamp(),
+        });
+      } catch (error) {
+        console.error("FIRESTORE REJECTION:", error);
+        throw error;
+      }
 
       onSubmitted();
     } catch (err: unknown) {
