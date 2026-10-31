@@ -69,15 +69,21 @@ export default function EventsPage() {
 
   useEffect(() => {
     try {
-      const unsub = onSnapshot(collection(db, "events"), (snapshot) => {
-        if (!snapshot.empty) {
-          const loaded = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as EventItem[];
-          setEvents(loaded);
+      const unsub = onSnapshot(
+        collection(db, "events"),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const loaded = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            })) as EventItem[];
+            setEvents(loaded);
+          }
+        },
+        (err) => {
+          console.warn("Firestore events subscription error:", err);
         }
-      });
+      );
       return () => unsub();
     } catch (err) {
       console.warn("Firestore events subscription error:", err);

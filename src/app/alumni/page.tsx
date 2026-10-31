@@ -629,6 +629,21 @@ function AlumniSubmissionModal({
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Manage body scroll lock and escape listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "unset";
+    };
+  }, [onClose]);
+
   // Cloudinary Direct Upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -701,24 +716,29 @@ function AlumniSubmissionModal({
       }
 
       let cleanLinkedin = (linkedinUrl || "").trim();
-      if (cleanLinkedin && !cleanLinkedin.startsWith("http://") && !cleanLinkedin.startsWith("https://")) {
+      if (cleanLinkedin.startsWith("http://")) {
+        cleanLinkedin = cleanLinkedin.replace("http://", "https://");
+      }
+      if (cleanLinkedin && !cleanLinkedin.startsWith("https://")) {
         cleanLinkedin = "https://" + cleanLinkedin;
       }
+      // Normalize country subdomains like in.linkedin.com to www.linkedin.com for regex matching
+      cleanLinkedin = cleanLinkedin.replace(/^https:\/\/[a-z]{2}\.linkedin\.com\//i, "https://www.linkedin.com/");
 
       const newAlumRef = doc(collection(db, "alumni"));
       const normalizedBatch = normalizeBatchYear(batchYear);
 
       const publicPayload = {
-        fullName: fullName.trim(),
-        batchYear: normalizedBatch,
-        currentRole: currentRole.trim(),
-        organization: organization.trim(),
-        sector: sector || "Public Sector",
-        location: location.trim(),
-        higherStudies: (higherStudies || "").trim(),
-        quote: (quote || "").trim(),
-        photoUrl: cleanPhoto,
-        linkedinUrl: cleanLinkedin,
+        fullName: fullName.trim().slice(0, 100),
+        batchYear: normalizedBatch.slice(0, 20),
+        currentRole: currentRole.trim().slice(0, 120),
+        organization: organization.trim().slice(0, 150),
+        sector: (sector || "Public Sector").slice(0, 80),
+        location: location.trim().slice(0, 100),
+        higherStudies: (higherStudies || "").trim().slice(0, 200),
+        quote: (quote || "").trim().slice(0, 600),
+        photoUrl: cleanPhoto.slice(0, 500),
+        linkedinUrl: cleanLinkedin.slice(0, 250),
         status: "pending",
         createdAt: serverTimestamp(),
       };
@@ -728,8 +748,8 @@ function AlumniSubmissionModal({
 
       // 2. Write private contact record for departmental verification only
       await setDoc(doc(db, "alumni_private", newAlumRef.id), {
-        email: email.trim().toLowerCase(),
-        fullName: fullName.trim(),
+        email: email.trim().toLowerCase().slice(0, 150),
+        fullName: fullName.trim().slice(0, 100),
         createdAt: serverTimestamp(),
       });
 

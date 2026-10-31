@@ -103,6 +103,25 @@ export default function ShowcaseSection({ isStandalonePage = false }: { isStanda
   const [activeModal, setActiveModal] = useState<ShowcaseItem | null>(null);
 
   useEffect(() => {
+    if (activeModal) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setActiveModal(null);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "unset";
+      };
+    } else {
+      document.body.style.overflow = "unset";
+    }
+  }, [activeModal]);
+
+  useEffect(() => {
     async function fetchShowcase() {
       try {
         setLoading(true);

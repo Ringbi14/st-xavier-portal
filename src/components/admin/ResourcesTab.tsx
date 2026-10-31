@@ -39,10 +39,34 @@ export default function ResourcesTab() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isModalOpen) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setIsModalOpen(false);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "unset";
+      };
+    } else {
+      document.body.style.overflow = "unset";
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
     const q = query(collection(db, "downloads"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setDownloads(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as DownloadItem)));
-    });
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        setDownloads(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as DownloadItem)));
+      },
+      (err) => {
+        console.error("Downloads subscription error:", err);
+      }
+    );
     return () => unsub();
   }, []);
 
@@ -78,7 +102,7 @@ export default function ResourcesTab() {
         category,
         targetProgram: "BSW",
         url: url.trim(),
-        note: note.trim() || undefined,
+        note: (note || "").trim(),
       };
 
       if (editingId) {

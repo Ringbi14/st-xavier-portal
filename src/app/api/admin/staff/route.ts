@@ -16,17 +16,17 @@ interface AuthFailure {
 }
 
 async function authenticateAdmin(req: Request): Promise<AuthSuccess | AuthFailure> {
-  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return { error: "Missing or malformed Authorization header.", status: 401 };
-  }
-
-  const token = authHeader.split("Bearer ")[1]?.trim();
-  if (!token) {
-    return { error: "Missing bearer token in authorization header.", status: 401 };
-  }
-
   try {
+    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return { error: "Missing or malformed Authorization header.", status: 401 };
+    }
+
+    const token = authHeader.split("Bearer ")[1]?.trim();
+    if (!token) {
+      return { error: "Missing bearer token in authorization header.", status: 401 };
+    }
+
     const adminAuth = getAdminAuth();
     const decoded = await adminAuth.verifyIdToken(token);
 
@@ -84,7 +84,7 @@ export async function GET(req: Request) {
   } catch (err: unknown) {
     console.error("Failed to list admin accounts:", err);
     const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ error: `Failed to retrieve admin accounts: ${msg}` }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -162,7 +162,7 @@ export async function POST(req: Request) {
   } catch (err: unknown) {
     console.error("Failed to provision admin account:", err);
     const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ error: `Account provisioning failed: ${msg}` }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -208,6 +208,6 @@ export async function DELETE(req: Request) {
   } catch (err: unknown) {
     console.error("Failed to delete admin account:", err);
     const msg = err instanceof Error ? err.message : "Internal Server Error";
-    return NextResponse.json({ error: `Account deletion failed: ${msg}` }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

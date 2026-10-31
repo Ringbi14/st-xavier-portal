@@ -42,10 +42,34 @@ export default function AgenciesTab() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isModalOpen) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setIsModalOpen(false);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "unset";
+      };
+    } else {
+      document.body.style.overflow = "unset";
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
     const q = query(collection(db, "agencies"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setAgencies(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as AgencyItem)));
-    });
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        setAgencies(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as AgencyItem)));
+      },
+      (err) => {
+        console.error("Agencies subscription error:", err);
+      }
+    );
     return () => unsub();
   }, []);
 
@@ -86,8 +110,8 @@ export default function AgenciesTab() {
         sector: domain,
         location: location.trim(),
         description: description.trim(),
-        phone: phone.trim() || undefined,
-        website: website.trim() || undefined,
+        phone: (phone || "").trim(),
+        website: (website || "").trim(),
       };
 
       if (editingId) {

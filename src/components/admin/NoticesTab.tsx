@@ -40,6 +40,24 @@ export default function NoticesTab() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isModalOpen) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setIsModalOpen(false);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "unset";
+      };
+    } else {
+      document.body.style.overflow = "unset";
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
     const q = query(collection(db, "notices"), orderBy("publishedAt", "desc"));
     const unsub = onSnapshot(
       q,
@@ -48,9 +66,15 @@ export default function NoticesTab() {
       },
       (err) => {
         console.warn("Ordered notices fetch fell back:", err);
-        const fallbackUnsub = onSnapshot(collection(db, "notices"), (snap) => {
-          setNotices(snap.docs.map((d) => ({ id: d.id, ...d.data() } as NoticeItem)));
-        });
+        const fallbackUnsub = onSnapshot(
+          collection(db, "notices"),
+          (snap) => {
+            setNotices(snap.docs.map((d) => ({ id: d.id, ...d.data() } as NoticeItem)));
+          },
+          (fallbackErr) => {
+            console.error("Fallback notices subscription error:", fallbackErr);
+          }
+        );
         return () => fallbackUnsub();
       }
     );
@@ -88,17 +112,17 @@ export default function NoticesTab() {
     setIsSubmitting(true);
 
     try {
-      const payload: Partial<NoticeItem> & { updatedAt: any; createdAt?: any } = {
+      const cleanFile = (fileUrl || "").trim();
+      const payload: Record<string, any> = {
         title: title.trim(),
-        publishedAt: publishedAt || new Date().toISOString().split("T")[0],
-        category,
+        publishedAt: (publishedAt || new Date().toISOString().split("T")[0]).trim(),
+        category: category || "General",
         body: body.trim(),
-        author: author.trim() || "Department of Social Work, SXC Maram",
+        author: (author || "").trim() || "Department of Social Work, SXC Maram",
+        fileUrl: cleanFile,
+        attachmentUrl: cleanFile,
         updatedAt: serverTimestamp(),
       };
-      if (fileUrl.trim()) {
-        payload.fileUrl = fileUrl.trim();
-      }
 
       if (editingId) {
         await updateDoc(doc(db, "notices", editingId), payload);

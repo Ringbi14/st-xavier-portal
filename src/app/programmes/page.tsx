@@ -210,6 +210,24 @@ export default function ProgrammesPage() {
   const [showSyllabusModal, setShowSyllabusModal] = useState<boolean>(false);
 
   useEffect(() => {
+    if (showSyllabusModal) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setShowSyllabusModal(false);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "unset";
+      };
+    } else {
+      document.body.style.overflow = "unset";
+    }
+  }, [showSyllabusModal]);
+
+  useEffect(() => {
     // Check if there is an uploaded syllabus in Firestore 'downloads' collection
     const checkSyllabus = async () => {
       try {

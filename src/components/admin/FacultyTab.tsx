@@ -82,10 +82,34 @@ export default function FacultyTab() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isModalOpen) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setIsModalOpen(false);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "unset";
+      };
+    } else {
+      document.body.style.overflow = "unset";
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
     const q = query(collection(db, "faculty"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setFaculty(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as FacultyMember)));
-    });
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        setFaculty(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as FacultyMember)));
+      },
+      (err) => {
+        console.error("Faculty subscription error:", err);
+      }
+    );
     return () => unsub();
   }, []);
 
@@ -111,8 +135,8 @@ export default function FacultyTab() {
     setDesignation(item.designation || "");
     setSpecialization(item.specialization || "");
     setEmail(item.email || "");
-    setImageUrl(item.imageUrl || "");
-    setQualification(item.qualification || "");
+    setImageUrl(item.imageUrl || item.photoUrl || "");
+    setQualification(item.qualification || (item as any).qualifications || "");
     setSupervisoryRole((item as { supervisoryRole?: string }).supervisoryRole || "");
     setIsModalOpen(true);
   };
@@ -132,14 +156,14 @@ export default function FacultyTab() {
       }
       const payload = {
         name: name.trim(),
-        categoryTier,
+        categoryTier: categoryTier || "Department Faculty",
         designation: designation.trim(),
         specialization: specialization.trim() || "Social Work",
-        email: email.trim().toLowerCase(),
+        email: (email || "").trim().toLowerCase(),
         imageUrl: cleanImg,
         photoUrl: cleanImg,
-        qualification: qualification.trim() || undefined,
-        supervisoryRole: supervisoryRole.trim() || undefined,
+        qualification: (qualification || "").trim(),
+        supervisoryRole: (supervisoryRole || "").trim(),
       };
 
       if (editingId) {

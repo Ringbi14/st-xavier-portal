@@ -32,6 +32,15 @@ interface AdminAccount {
   isCurrentCaller?: boolean;
 }
 
+async function safeParseJson(res: Response): Promise<any> {
+  try {
+    const text = await res.text();
+    return text ? JSON.parse(text) : {};
+  } catch {
+    return { error: `Server returned an invalid response (${res.status} ${res.statusText || ""}).` };
+  }
+}
+
 function generateSecurePassword(): string {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghijkmnopqrstuvwxyz";
@@ -85,7 +94,7 @@ export default function StaffAccessTab() {
         },
       });
 
-      const data = await res.json();
+      const data = await safeParseJson(res);
 
       if (!res.ok) {
         if (res.status === 503 || data.error?.includes("Firebase Admin service account key")) {
@@ -155,7 +164,7 @@ export default function StaffAccessTab() {
         }),
       });
 
-      const data = await res.json();
+      const data = await safeParseJson(res);
 
       if (!res.ok) {
         throw new Error(data.error || "Failed to create administrator account.");
@@ -198,7 +207,7 @@ export default function StaffAccessTab() {
         },
       });
 
-      const data = await res.json();
+      const data = await safeParseJson(res);
 
       if (!res.ok) {
         throw new Error(data.error || "Failed to delete administrator account.");

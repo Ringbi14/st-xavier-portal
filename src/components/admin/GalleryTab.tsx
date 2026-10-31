@@ -75,10 +75,34 @@ export default function GalleryTab() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isModalOpen) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setIsModalOpen(false);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "unset";
+      };
+    } else {
+      document.body.style.overflow = "unset";
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
     const q = query(collection(db, "gallery"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as ShowcaseItem)));
-    });
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as ShowcaseItem)));
+      },
+      (err) => {
+        console.error("Gallery subscription error:", err);
+      }
+    );
     return () => unsub();
   }, []);
 
@@ -100,7 +124,7 @@ export default function GalleryTab() {
     setAcademicYear(item.academicYear || "2025-2026");
     setLocation(item.location || "");
     setSummary(item.impactSummary || item.description || "");
-    setImageUrl(item.imageUrl || "");
+    setImageUrl(item.imageUrl || item.photoUrl || item.publicUrl || "");
     setIsModalOpen(true);
   };
 

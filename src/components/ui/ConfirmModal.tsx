@@ -25,13 +25,23 @@ export function ConfirmModal({
   onCancel,
 }: ConfirmModalProps) {
   useEffect(() => {
+    if (!isOpen) {
+      document.body.style.overflow = "unset";
+      return;
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === "Escape") {
         onCancel();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "unset";
+    };
   }, [isOpen, onCancel]);
 
   if (!isOpen) return null;
