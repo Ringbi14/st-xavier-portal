@@ -10,7 +10,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { AlumniProfile, AlumniSector } from "@/lib/types";
-import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
+import { optimizeCloudinaryUrl, openCloudinaryWidget } from "@/lib/cloudinary";
 import { normalizeBatchYear } from "@/lib/utils";
 import { InlineBanner } from "@/components/ui/Toast";
 import {
@@ -34,6 +34,9 @@ import {
   HeartHandshake,
   TrendingUp,
   Globe2,
+  Camera,
+  RefreshCw,
+  Trash2,
 } from "lucide-react";
 
 // Single Clean Reference BSW Alumni Profile (St. Xavier College, Maram Khunou - Est. 2019)
@@ -641,66 +644,45 @@ function AlumniSubmissionModal({
     };
   }, [onClose]);
 
-  // Cloudinary Direct Upload
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setUploadError("Please select a valid image file (PNG, JPG, WEBP).");
-      return;
-    }
-
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-
-    if (!cloudName || !uploadPreset) {
-      const errMsg = "Cloudinary environment variables (NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET) are required for photo upload.";
-      console.error(errMsg);
-      setUploadError(errMsg);
-      return;
-    }
-
-    try {
-      setIsUploading(true);
-      setUploadError(null);
-
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", uploadPreset);
-
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorJson = await res.json().catch(() => ({}));
-        throw new Error(errorJson.error?.message || `Upload failed (${res.status})`);
-      }
-
-      const data = await res.json();
-      let secureUrl = data.secure_url || data.url;
-      if (!secureUrl) throw new Error("No URL returned from upload");
-
-      if (typeof secureUrl === "string" && secureUrl.startsWith("http://")) {
-        secureUrl = secureUrl.replace("http://", "https://");
-      }
-
-      setPhotoUrl(secureUrl);
-    } catch (err: any) {
-      console.error("Cloudinary upload failed:", err);
-      setUploadError(err.message || "Upload failed. You can paste a photo URL directly.");
-    } finally {
+  // Open Cloudinary Upload Widget
+  const handleOpenCloudinaryWidget = () => {
+    setUploadError(null);
+    setIsUploading(true);
+    openCloudinaryWidget({
+      folder: "st_xavier_portal/alumni",
+      resourceType: "image",
+      multiple: false,
+      onSuccess: (secureUrl) => {
+        setPhotoUrl(secureUrl);
+        setUploadError(null);
+        setIsUploading(false);
+      },
+      onError: (err) => {
+        console.error("Cloudinary widget error:", err);
+        setUploadError(err.message || "Failed to complete Cloudinary upload.");
+        setIsUploading(false);
+      },
+    }).catch((err: unknown) => {
+      console.error("Failed to initialize Cloudinary widget:", err);
+      const msg = err instanceof Error ? err.message : "Could not open Cloudinary widget.";
+      setUploadError(msg);
       setIsUploading(false);
-      e.target.value = "";
-    }
+    });
+
+    // Reset uploading spinner in case user closes dialog without upload
+    setTimeout(() => {
+      setIsUploading(false);
+    }, 2000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim() || !batchYear.trim() || !currentRole.trim() || !organization.trim() || !email.trim()) {
       setFormError("Please fill in your name, graduating batch, current role, organization, and email.");
+      return;
+    }
+    if (!photoUrl.trim()) {
+      setFormError("Please upload your portrait photo using the Cloudinary uploader before submitting.");
       return;
     }
     setFormError(null);
@@ -931,65 +913,109 @@ function AlumniSubmissionModal({
             />
           </div>
 
-          {/* Cloudinary Portrait Upload */}
-          <div className="space-y-2 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+          {/* Cloudinary Portrait Upload Widget */}
+          <div className="space-y-2 p-4 rounded-2xl bg-slate-50 border border-slate-200">
             <div className="flex items-center justify-between">
-              <label className="block text-[11px] font-bold text-slate-700">
-                Portrait Photo (Cloudinary Upload or Web URL)
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                Portrait Photo *
               </label>
-              <label className="inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold text-[#0f2042] bg-amber-100 hover:bg-amber-200 rounded-lg border border-amber-300 cursor-pointer transition">
-                {isUploading ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Upload Portrait</span>
-                  </>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={isUploading}
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
+              {photoUrl ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  Cloudinary Asset Verified
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-500 font-medium">JPEG, PNG, WEBP up to 10MB</span>
+              )}
             </div>
 
-            <input
-              type="url"
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
-              placeholder="https://res.cloudinary.com/... or paste image URL"
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
-            />
+            {!photoUrl ? (
+              <div className="mt-2 flex flex-col sm:flex-row items-center gap-3.5 p-4 bg-white rounded-xl border border-dashed border-slate-300 hover:border-amber-400 transition-colors">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+                  <Camera className="w-6 h-6" />
+                </div>
+                <div className="flex-1 text-center sm:text-left min-w-0">
+                  <p className="text-xs font-bold text-slate-900">
+                    Upload Official Alumni Portrait
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Upload from your device, capture with camera, or select via Cloudinary.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenCloudinaryWidget}
+                  disabled={isUploading}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0f2042] hover:bg-[#162e5d] text-amber-300 text-xs font-bold transition shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Opening...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Upload with Cloudinary</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 p-3.5 bg-white rounded-xl border border-slate-200 shadow-xs">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-100 border-2 border-emerald-500/40 shrink-0 shadow-xs relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={optimizeCloudinaryUrl(photoUrl, 300)}
+                      alt="Portrait Preview"
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>Portrait Attached</span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    </p>
+                    <p className="text-[10px] font-mono text-slate-500 truncate mt-0.5 max-w-[220px] sm:max-w-xs">
+                      {photoUrl}
+                    </p>
+                  </div>
+                </div>
 
-            {uploadError && (
-              <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-[11px] flex items-center gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                <span>{uploadError}</span>
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={handleOpenCloudinaryWidget}
+                    disabled={isUploading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#0f2042] bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-300 transition cursor-pointer"
+                    title="Replace with another photo"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Replace</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoUrl("");
+                      setUploadError(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 transition cursor-pointer"
+                    title="Remove attached portrait"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Remove</span>
+                  </button>
+                </div>
               </div>
             )}
 
-            {photoUrl && (
-              <div className="flex items-center gap-3 pt-1">
-                <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-200 border border-slate-300 shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={optimizeCloudinaryUrl(photoUrl, 300)}
-                    alt="Preview"
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Portrait attached successfully</span>
-                </div>
+            {uploadError && (
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{uploadError}</span>
               </div>
             )}
           </div>

@@ -81,6 +81,38 @@ export async function POST(req: NextRequest) {
       cleanPhoto = cleanPhoto.replace("http://", "https://");
     }
 
+    // Validate photoUrl format and ensure secure Cloudinary hosting if provided
+    if (cleanPhoto.length > 0) {
+      if (!cleanPhoto.startsWith("https://")) {
+        return NextResponse.json(
+          { error: "photoUrl must be a secure HTTPS URL." },
+          { status: 400 }
+        );
+      }
+
+      try {
+        const parsedUrl = new URL(cleanPhoto);
+        if (parsedUrl.protocol !== "https:") {
+          return NextResponse.json(
+            { error: "photoUrl must use HTTPS protocol." },
+            { status: 400 }
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          { error: "photoUrl must be a valid URL string." },
+          { status: 400 }
+        );
+      }
+
+      if (!cleanPhoto.startsWith("https://res.cloudinary.com/")) {
+        return NextResponse.json(
+          { error: "photoUrl must be hosted on Cloudinary (https://res.cloudinary.com/...)." },
+          { status: 400 }
+        );
+      }
+    }
+
     let cleanLinkedin = (typeof linkedinUrl === "string" ? linkedinUrl : "").trim();
     if (cleanLinkedin.startsWith("http://")) {
       cleanLinkedin = cleanLinkedin.replace("http://", "https://");
