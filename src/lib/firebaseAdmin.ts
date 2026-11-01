@@ -2,9 +2,11 @@ import fs from "fs";
 import path from "path";
 import { cert, getApps, initializeApp, App } from "firebase-admin/app";
 import { getAuth, Auth } from "firebase-admin/auth";
+import { getFirestore, Firestore } from "firebase-admin/firestore";
 
 let adminApp: App | null = null;
 let adminAuth: Auth | null = null;
+let adminDb: Firestore | null = null;
 
 function loadServiceAccount(): Record<string, unknown> | null {
   // 1. Check direct JSON string environment variable (Vercel production standard)
@@ -56,16 +58,13 @@ export function isAdminConfigured(): boolean {
   return loadServiceAccount() !== null;
 }
 
-export function getAdminAuth(): Auth {
-  if (adminAuth) {
-    return adminAuth;
-  }
+export function getAdminApp(): App {
+  if (adminApp) return adminApp;
 
   const existingApps = getApps();
   if (existingApps.length > 0) {
     adminApp = existingApps[0];
-    adminAuth = getAuth(adminApp);
-    return adminAuth;
+    return adminApp;
   }
 
   const serviceAccount = loadServiceAccount();
@@ -78,6 +77,23 @@ export function getAdminAuth(): Auth {
   adminApp = initializeApp({
     credential: cert(serviceAccount),
   });
-  adminAuth = getAuth(adminApp);
+  return adminApp;
+}
+
+export function getAdminAuth(): Auth {
+  if (adminAuth) {
+    return adminAuth;
+  }
+  const app = getAdminApp();
+  adminAuth = getAuth(app);
   return adminAuth;
+}
+
+export function getAdminDb(): Firestore {
+  if (adminDb) {
+    return adminDb;
+  }
+  const app = getAdminApp();
+  adminDb = getFirestore(app);
+  return adminDb;
 }

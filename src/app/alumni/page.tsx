@@ -8,9 +8,6 @@ import {
   query,
   where,
   getDocs,
-  serverTimestamp,
-  doc,
-  setDoc,
 } from "firebase/firestore";
 import { AlumniProfile, AlumniSector } from "@/lib/types";
 import { optimizeCloudinaryUrl } from "@/lib/cloudinary";
@@ -725,49 +722,49 @@ function AlumniSubmissionModal({
       // Normalize country subdomains like in.linkedin.com to www.linkedin.com for regex matching
       cleanLinkedin = cleanLinkedin.replace(/^https:\/\/[a-z]{2}\.linkedin\.com\//i, "https://www.linkedin.com/");
 
-      const newAlumRef = doc(collection(db, "alumni"));
       const normalizedBatch = normalizeBatchYear(batchYear);
 
-      const publicPayload = {
-        fullName: fullName.trim().slice(0, 100),
-        batchYear: normalizedBatch.slice(0, 20),
-        currentRole: currentRole.trim().slice(0, 120),
-        organization: organization.trim().slice(0, 150),
-        sector: (sector || "Public Sector").slice(0, 80),
-        location: location.trim().slice(0, 100),
-        higherStudies: (higherStudies || "").trim().slice(0, 200),
-        quote: (quote || "").trim().slice(0, 600),
-        photoUrl: cleanPhoto.slice(0, 500),
-        linkedinUrl: cleanLinkedin.slice(0, 250),
-        status: "pending",
-        createdAt: serverTimestamp(),
+      const formData = {
+        fullName: fullName.trim(),
+        batchYear: normalizedBatch,
+        email: email.trim().toLowerCase(),
+        photoUrl: cleanPhoto,
+        designation: currentRole.trim(),
+        currentRole: currentRole.trim(),
+        organization: organization.trim(),
+        sector,
+        location: location.trim(),
+        higherStudies: higherStudies.trim(),
+        quote: quote.trim(),
+        linkedinUrl: cleanLinkedin,
       };
 
-      const submissionData = {
-        ...publicPayload,
-        email: email.trim().toLowerCase().slice(0, 150),
-      };
-      console.log("ALUMNI PAYLOAD:", { ...submissionData });
+      const res = await fetch("/api/alumni/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
 
-      // 1. Write public profile document without email
-      try {
-        await setDoc(newAlumRef, publicPayload);
-      } catch (error) {
-        console.error("FIRESTORE REJECTION:", error);
-        throw error;
+      const data = await res.json().catch(() => ({ error: "Server returned an invalid response." }));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to submit profile. Please verify your details.");
       }
 
-      // 2. Write private contact record for departmental verification only
-      try {
-        await setDoc(doc(db, "alumni_private", newAlumRef.id), {
-          email: email.trim().toLowerCase().slice(0, 150),
-          fullName: fullName.trim().slice(0, 100),
-          createdAt: serverTimestamp(),
-        });
-      } catch (error) {
-        console.error("FIRESTORE REJECTION:", error);
-        throw error;
-      }
+      // Reset form state on successful submission
+      setFullName("");
+      setBatchYear("");
+      setCurrentRole("");
+      setOrganization("");
+      setSector("Public Sector");
+      setLocation("");
+      setHigherStudies("");
+      setQuote("");
+      setEmail("");
+      setLinkedinUrl("");
+      setPhotoUrl("");
 
       onSubmitted();
     } catch (err: unknown) {

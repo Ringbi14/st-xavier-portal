@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { auth } from "@/lib/firebase";
 import {
   ShieldCheck,
   KeyRound,
@@ -81,13 +82,14 @@ export default function StaffAccessTab() {
   const [deleteConfirm, setDeleteConfirm] = useState<AdminAccount | null>(null);
 
   const fetchAdmins = useCallback(async (isSilent = false) => {
-    if (!user) return;
+    const currentUser = auth.currentUser || user;
+    if (!currentUser) return;
     if (!isSilent) setLoading(true);
     else setRefreshing(true);
     setConfigError(null);
 
     try {
-      const token = await user.getIdToken();
+      const token = await currentUser.getIdToken();
       const res = await fetch("/api/admin/staff", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -148,8 +150,9 @@ export default function StaffAccessTab() {
     setIsSubmitting(true);
 
     try {
-      if (!user) throw new Error("Current session expired. Please sign in again.");
-      const token = await user.getIdToken();
+      const currentUser = auth.currentUser || user;
+      if (!currentUser) throw new Error("Current session expired. Please sign in again.");
+      const token = await currentUser.getIdToken();
 
       const res = await fetch("/api/admin/staff", {
         method: "POST",
@@ -197,8 +200,9 @@ export default function StaffAccessTab() {
     const target = deleteConfirm;
 
     try {
-      if (!user) throw new Error("Current session expired.");
-      const token = await user.getIdToken();
+      const currentUser = auth.currentUser || user;
+      if (!currentUser) throw new Error("Current session expired.");
+      const token = await currentUser.getIdToken();
 
       const res = await fetch(`/api/admin/staff?uid=${encodeURIComponent(target.uid)}`, {
         method: "DELETE",
