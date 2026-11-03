@@ -18,15 +18,11 @@ import {
   Sparkles,
   Users,
   Briefcase,
-  Award,
   ArrowLeft,
   CheckCircle2,
-  Building2,
-  MapPin,
   ExternalLink,
   Search,
   Quote,
-  Upload,
   Loader2,
   X,
   AlertCircle,
@@ -39,7 +35,6 @@ import {
   Trash2,
 } from "lucide-react";
 
-// Single Clean Reference BSW Alumni Profile (St. Xavier College, Maram Khunou - Est. 2019)
 const SECTORS: AlumniSector[] = [
   "All",
   "Higher Education",
@@ -61,6 +56,19 @@ function getInitials(name: string): string {
     return (words[0][0] + words[words.length - 1][0]).toUpperCase();
   }
   return clean.slice(0, 2).toUpperCase() || "SX";
+}
+
+function LinkedInIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.65 1.65 0 1 0 0-3.3 1.65 1.65 0 0 0 0 3.3m1.4 9.74v-8.37H5.06v8.37z" />
+    </svg>
+  );
 }
 
 function AlumniAvatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
@@ -140,6 +148,9 @@ export default function AlumniPage() {
     .sort()
     .reverse();
 
+  // Check if legacy sector filtering is relevant
+  const hasSectors = alumni.some((item) => Boolean(item.sector && item.sector.trim()));
+
   // Filter and auto-sort: newest batch first, case-insensitive search
   const filteredAlumni = alumni
     .filter((item) => {
@@ -151,11 +162,11 @@ export default function AlumniPage() {
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         q === "" ||
-        item.fullName.toLowerCase().includes(q) ||
-        item.organization.toLowerCase().includes(q) ||
-        item.currentRole.toLowerCase().includes(q) ||
-        (item.location && item.location.toLowerCase().includes(q)) ||
-        (item.higherStudies && item.higherStudies.toLowerCase().includes(q));
+        (item.fullName && item.fullName.toLowerCase().includes(q)) ||
+        (item.batchYear && item.batchYear.toLowerCase().includes(q)) ||
+        (item.quote && item.quote.toLowerCase().includes(q)) ||
+        (item.organization && item.organization.toLowerCase().includes(q)) ||
+        (item.currentRole && item.currentRole.toLowerCase().includes(q));
 
       return matchesSector && matchesBatch && matchesSearch;
     })
@@ -206,11 +217,11 @@ export default function AlumniPage() {
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black text-[#0f2042] tracking-tight leading-[1.12]">
-            Alumni Showcase & Career Network
+            Alumni Showcase & Directory
           </h1>
 
           <p className="text-sm sm:text-base text-slate-600 mt-3 max-w-3xl leading-relaxed">
-            Reconnecting social work graduates of St. Xavier College serving in child protection, community health, tribal development, corporate CSR, and postgraduate research institutions across India.
+            Reconnecting social work graduates of St. Xavier College, sharing memories, guidance for juniors, and building a community of compassionate change-makers.
           </p>
         </div>
       </section>
@@ -271,7 +282,7 @@ export default function AlumniPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search alumni by name, role, organization, or location..."
+              placeholder="Search alumni by name, batch, or message..."
               className="w-full pl-10 pr-10 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#0f2042]/20 focus:border-[#0f2042] transition"
             />
             {searchQuery && (
@@ -341,26 +352,28 @@ export default function AlumniPage() {
             )}
           </div>
 
-          {/* Sector Filter Pills */}
-          <div className="flex flex-wrap items-center gap-1.5 text-xs pt-1 border-t border-slate-100">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 hidden sm:inline">
-              Sector:
-            </span>
-            {SECTORS.map((sector) => (
-              <button
-                key={sector}
-                type="button"
-                onClick={() => setSelectedSector(sector)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                  selectedSector === sector
-                    ? "bg-[#0f2042] text-white shadow-xs"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-                }`}
-              >
-                {sector}
-              </button>
-            ))}
-          </div>
+          {/* Sector Filter Pills (displayed when sector data exists) */}
+          {hasSectors && (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs pt-1 border-t border-slate-100">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 hidden sm:inline">
+                Sector:
+              </span>
+              {SECTORS.map((sector) => (
+                <button
+                  key={sector}
+                  type="button"
+                  onClick={() => setSelectedSector(sector)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                    selectedSector === sector
+                      ? "bg-[#0f2042] text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                  }`}
+                >
+                  {sector}
+                </button>
+              ))}
+            </div>
+          )}
 
         </div>
 
@@ -424,7 +437,7 @@ export default function AlumniPage() {
                     onClick={() => setIsModalOpen(true)}
                     className="text-[#0f2042] font-bold underline hover:text-amber-600 cursor-pointer"
                   >
-                    Submit your career update
+                    Submit your profile update
                   </button>
                   .
                 </>
@@ -442,93 +455,64 @@ export default function AlumniPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAlumni.map((alum) => (
-              <div
-                key={alum.id}
-                className="p-6 rounded-3xl bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md transition flex flex-col justify-between group shadow-xs space-y-5"
-              >
-                <div className="space-y-4">
-                  
-                  {/* Card Header: Avatar & Primary Info */}
-                  <div className="flex items-start gap-3.5">
-                    <AlumniAvatar name={alum.fullName} photoUrl={alum.photoUrl} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-300 font-mono">
-                          Batch {alum.batchYear}
-                        </span>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200 truncate">
-                          {alum.sector}
-                        </span>
-                      </div>
-                      <h3 className="text-base font-bold text-slate-900 group-hover:text-[#0f2042] transition leading-snug mt-1">
-                        {alum.fullName}
-                      </h3>
-                    </div>
-                  </div>
+            {filteredAlumni.map((alum) => {
+              const rawBatch = (alum.batchYear || "").trim();
+              const cleanBatch = rawBatch.replace(/^Batch\s*(of)?\s*/i, "").trim();
+              const batchBadgeText = cleanBatch ? `Batch of ${cleanBatch}` : "Alumnus";
 
-                  {/* Career Role & Org */}
-                  <div className="space-y-1.5 text-xs text-slate-600 bg-slate-50/70 p-3 rounded-2xl border border-slate-100">
-                    <div className="flex items-start gap-2">
-                      <Briefcase className="w-3.5 h-3.5 text-[#0f2042] shrink-0 mt-0.5" />
-                      <span className="font-bold text-slate-900 leading-snug">
-                        {alum.currentRole}
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-2 text-slate-600">
-                      <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                      <span className="truncate">{alum.organization}</span>
-                    </div>
-                    {alum.location && (
-                      <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-0.5">
-                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                        <span>{alum.location}</span>
+              return (
+                <div
+                  key={alum.id}
+                  className="p-6 rounded-3xl bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md transition flex flex-col justify-between group shadow-xs space-y-4"
+                >
+                  <div className="space-y-4">
+                    
+                    {/* Card Header: Portrait, Full Name, "Batch of {batchYear}" badge */}
+                    <div className="flex items-start gap-3.5">
+                      <AlumniAvatar name={alum.fullName} photoUrl={alum.photoUrl} />
+                      <div className="min-w-0 flex-1">
+                        <span className="inline-flex items-center text-[10px] sm:text-xs font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 font-mono tracking-wide">
+                          {batchBadgeText}
+                        </span>
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-[#0f2042] transition leading-snug mt-1.5 break-words">
+                          {alum.fullName}
+                        </h3>
                       </div>
+                    </div>
+
+                    {/* Junior Advice / Message Quote in styled blockquote */}
+                    {alum.quote && alum.quote.trim() && (
+                      <blockquote className="relative p-3.5 sm:p-4 rounded-2xl bg-amber-50/50 border-l-4 border-amber-500 text-xs sm:text-sm text-slate-700 leading-relaxed italic">
+                        <Quote className="w-4 h-4 text-amber-500/70 mb-1" />
+                        <p>&ldquo;{alum.quote.trim()}&rdquo;</p>
+                      </blockquote>
                     )}
+
                   </div>
 
-                  {/* Higher Studies Tag */}
-                  {alum.higherStudies && (
-                    <div className="flex items-start gap-2 text-[11px] text-slate-600 px-1">
-                      <GraduationCap className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                      <span className="font-medium text-slate-700">
-                        {alum.higherStudies}
+                  {/* LinkedIn Action: Only rendered when linkedinUrl exists; hidden completely if absent */}
+                  {alum.linkedinUrl && alum.linkedinUrl.trim() && (
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        St. Xavier Alumni
                       </span>
-                    </div>
-                  )}
-
-                  {/* Junior Advice Quote */}
-                  {alum.quote && (
-                    <div className="relative p-3.5 rounded-2xl bg-amber-50/40 border border-amber-200/60 text-xs text-slate-700 leading-relaxed italic">
-                      <Quote className="w-3.5 h-3.5 text-amber-600 shrink-0 mb-1 opacity-70" />
-                      <p>&quot;{alum.quote}&quot;</p>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Card Footer: Connect Actions */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <div className="text-[10px] text-slate-400 font-mono">
-                    St. Xavier Alumni
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {alum.linkedinUrl && (
                       <a
                         href={alum.linkedinUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0f2042] hover:text-amber-600 transition"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-[#0077b5]/10 text-slate-700 hover:text-[#0077b5] border border-slate-200 hover:border-[#0077b5]/30 text-xs font-semibold transition group/link"
+                        aria-label={`${alum.fullName}'s LinkedIn Profile`}
                       >
+                        <LinkedInIcon className="w-3.5 h-3.5 text-[#0077b5]" />
                         <span>LinkedIn</span>
-                        <ExternalLink className="w-3 h-3" />
+                        <ExternalLink className="w-3 h-3 text-slate-400 group-hover/link:text-[#0077b5] transition-colors" />
                       </a>
-                    )}
-                  </div>
-                </div>
+                    </div>
+                  )}
 
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -547,7 +531,7 @@ export default function AlumniPage() {
               Keep the Xavier Social Work Brotherhood Connected
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
-              Update your latest designation, higher education progression, or organization to inspire incoming BSW batches and offer mentorship.
+              Share your graduating batch, a message to incoming batches, and connect with fellow alumni across the practitioner network.
             </p>
           </div>
           <button
@@ -603,7 +587,7 @@ export default function AlumniPage() {
 }
 
 // ====================================================================
-// PUBLIC ALUMNI PROFILE UPDATE SUBMISSION MODAL
+// STREAMLINED PUBLIC ALUMNI PROFILE SUBMISSION MODAL
 // ====================================================================
 function AlumniSubmissionModal({
   onClose,
@@ -614,15 +598,11 @@ function AlumniSubmissionModal({
 }) {
   const [fullName, setFullName] = useState("");
   const [batchYear, setBatchYear] = useState("");
-  const [currentRole, setCurrentRole] = useState("");
-  const [organization, setOrganization] = useState("");
-  const [sector, setSector] = useState<AlumniSector>("Public Sector");
-  const [location, setLocation] = useState("");
-  const [higherStudies, setHigherStudies] = useState("");
-  const [quote, setQuote] = useState("");
   const [email, setEmail] = useState("");
-  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [quote, setQuote] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [botCheck, setBotCheck] = useState("");
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -677,14 +657,27 @@ function AlumniSubmissionModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !batchYear.trim() || !currentRole.trim() || !organization.trim() || !email.trim()) {
-      setFormError("Please fill in your name, graduating batch, current role, organization, and email.");
+    if (!fullName.trim() || !batchYear.trim() || !email.trim()) {
+      setFormError("Please fill in your full name, graduating batch, and email.");
       return;
     }
+
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setFormError("Please enter a valid email address.");
+      return;
+    }
+
     if (!photoUrl.trim()) {
       setFormError("Please upload your portrait photo using the Cloudinary uploader before submitting.");
       return;
     }
+
+    if (quote.trim().length > 300) {
+      setFormError("Message to juniors / note must be 300 characters or fewer.");
+      return;
+    }
+
     setFormError(null);
 
     try {
@@ -701,7 +694,6 @@ function AlumniSubmissionModal({
       if (cleanLinkedin && !cleanLinkedin.startsWith("https://")) {
         cleanLinkedin = "https://" + cleanLinkedin;
       }
-      // Normalize country subdomains like in.linkedin.com to www.linkedin.com for regex matching
       cleanLinkedin = cleanLinkedin.replace(/^https:\/\/[a-z]{2}\.linkedin\.com\//i, "https://www.linkedin.com/");
 
       const normalizedBatch = normalizeBatchYear(batchYear);
@@ -711,14 +703,9 @@ function AlumniSubmissionModal({
         batchYear: normalizedBatch,
         email: email.trim().toLowerCase(),
         photoUrl: cleanPhoto,
-        designation: currentRole.trim(),
-        currentRole: currentRole.trim(),
-        organization: organization.trim(),
-        sector,
-        location: location.trim(),
-        higherStudies: higherStudies.trim(),
-        quote: quote.trim(),
+        quote: quote.trim().slice(0, 300),
         linkedinUrl: cleanLinkedin,
+        bot_check: botCheck,
       };
 
       const res = await fetch("/api/alumni/submit", {
@@ -738,15 +725,11 @@ function AlumniSubmissionModal({
       // Reset form state on successful submission
       setFullName("");
       setBatchYear("");
-      setCurrentRole("");
-      setOrganization("");
-      setSector("Public Sector");
-      setLocation("");
-      setHigherStudies("");
-      setQuote("");
       setEmail("");
-      setLinkedinUrl("");
       setPhotoUrl("");
+      setQuote("");
+      setLinkedinUrl("");
+      setBotCheck("");
 
       onSubmitted();
     } catch (err: unknown) {
@@ -760,7 +743,7 @@ function AlumniSubmissionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-xl my-8 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+      <div className="relative w-full max-w-lg my-8 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
         
         {/* Header */}
         <div className="px-6 py-5 bg-[#0f2042] text-white flex items-center justify-between border-b border-[#1e3a8a]">
@@ -800,14 +783,28 @@ function AlumniSubmissionModal({
           <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-2">
             <HeartHandshake className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
             <span>
-              Your profile will be reviewed by the Department of Social Work before publishing to prevent spam and ensure verified cohort records.
+              Your profile will be reviewed by the Department of Social Work before publishing to maintain verified cohort records.
             </span>
+          </div>
+
+          {/* Honeypot field for bot detection */}
+          <div className="hidden" aria-hidden="true">
+            <label htmlFor="bot_check">Leave this field empty</label>
+            <input
+              id="bot_check"
+              type="text"
+              name="bot_check"
+              value={botCheck}
+              onChange={(e) => setBotCheck(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Full Name *
+                Full Name <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -821,7 +818,7 @@ function AlumniSubmissionModal({
 
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Graduating Batch *
+                Graduating Batch <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
@@ -836,93 +833,38 @@ function AlumniSubmissionModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Current Designation / Role *
-              </label>
-              <input
-                type="text"
-                required
-                value={currentRole}
-                onChange={(e) => setCurrentRole(e.target.value)}
-                placeholder="e.g. Project Officer / Medical Social Worker"
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Organization / Institution *
-              </label>
-              <input
-                type="text"
-                required
-                value={organization}
-                onChange={(e) => setOrganization(e.target.value)}
-                placeholder="e.g. World Vision / RIMS Hospital / DCPU"
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Sector / Field of Practice *
-              </label>
-              <select
-                value={sector}
-                onChange={(e) => setSector(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 font-semibold"
-              >
-                <option value="Public Sector">Public Sector / Government</option>
-                <option value="Child Welfare">Child Welfare & Protection</option>
-                <option value="Rural Development">Rural Development & Livelihood</option>
-                <option value="Higher Education">Higher Education & Research</option>
-                <option value="Healthcare & Mental Health">Healthcare & Psychiatric Social Work</option>
-                <option value="NGO & Advocacy">NGO & Grassroots Advocacy</option>
-                <option value="CSR & Corporate">Corporate Social Responsibility (CSR)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Current Location (City / District)
-              </label>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Senapati, Manipur / New Delhi"
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
-              />
-            </div>
-          </div>
-
           <div>
-            <label className="block text-[11px] font-bold text-slate-700 mb-1">
-              Higher Studies / Post-Graduation (Optional)
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[11px] font-bold text-slate-700">
+                Email Address <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-[10px] text-amber-700 font-semibold">
+                Kept private for department verification
+              </span>
+            </div>
             <input
-              type="text"
-              value={higherStudies}
-              onChange={(e) => setHigherStudies(e.target.value)}
-              placeholder="e.g. MSW from TISS Mumbai / Ph.D. Scholar at Manipur University"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your.email@example.com"
               className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
             />
+            <p className="text-[10px] text-slate-500 mt-0.5">
+              Your email will not be displayed publicly in the alumni directory.
+            </p>
           </div>
 
           {/* Cloudinary Portrait Upload Widget */}
           <div className="space-y-2 p-4 rounded-2xl bg-slate-50 border border-slate-200">
             <div className="flex items-center justify-between">
               <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                Portrait Photo *
+                Portrait Photo <span className="text-rose-500">*</span>
               </label>
               {photoUrl ? (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                   <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  Cloudinary Asset Verified
+                  Cloudinary Asset Attached
                 </span>
               ) : (
                 <span className="text-[10px] text-slate-500 font-medium">JPEG, PNG, WEBP up to 10MB</span>
@@ -1020,46 +962,38 @@ function AlumniSubmissionModal({
             )}
           </div>
 
+          {/* Quote: Optional message to juniors / note to visitors (max 300 chars) */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-700 mb-1">
-              Advice for Current BSW Students / Reflection Quote
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[11px] font-bold text-slate-700">
+                Message to Juniors / Note to Visitors (Optional)
+              </label>
+              <span className="text-[10px] text-slate-400 font-mono">
+                {quote.length}/300
+              </span>
+            </div>
             <textarea
               rows={3}
+              maxLength={300}
               value={quote}
               onChange={(e) => setQuote(e.target.value)}
-              placeholder="Share a reflection about your time at St. Xavier, rural camp memories, or words of encouragement for junior batches..."
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
+              placeholder="Share memories, encouragement for junior batches, or a note to visitors..."
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 text-slate-900"
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Your Email * (For Departmental Verification)
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your.email@gmail.com"
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                LinkedIn Profile URL (Optional)
-              </label>
-              <input
-                type="url"
-                value={linkedinUrl}
-                onChange={(e) => setLinkedinUrl(e.target.value)}
-                placeholder="https://linkedin.com/in/username"
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
-              />
-            </div>
+          {/* LinkedIn Profile URL (Optional) */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-700 mb-1">
+              LinkedIn Profile URL (Optional)
+            </label>
+            <input
+              type="url"
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              placeholder="https://linkedin.com/in/username"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
+            />
           </div>
 
           {/* Footer Buttons */}
@@ -1067,7 +1001,7 @@ function AlumniSubmissionModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold"
+              className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer"
             >
               Cancel
             </button>

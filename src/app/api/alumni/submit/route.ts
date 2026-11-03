@@ -19,17 +19,26 @@ export async function POST(req: NextRequest) {
       batchYear,
       email,
       photoUrl,
+      quote,
+      linkedinUrl,
+      bot_check,
       designation,
       currentRole,
       organization,
       higherStudies,
-      quote,
-      linkedinUrl,
       sector,
       location,
     } = body;
 
-    // 1. Required Field Validation
+    // Honeypot check: reject bot submissions silently
+    if (bot_check && typeof bot_check === "string" && bot_check.trim().length > 0) {
+      return NextResponse.json(
+        { success: true, message: "Submission received." },
+        { status: 200 }
+      );
+    }
+
+    // 1. Strict Validation on Required Fields
     if (
       !fullName ||
       typeof fullName !== "string" ||
@@ -68,51 +77,52 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (typeof photoUrl !== "string") {
+    if (
+      !photoUrl ||
+      typeof photoUrl !== "string" ||
+      photoUrl.trim().length === 0
+    ) {
       return NextResponse.json(
-        { error: "photoUrl is required and must be a string." },
+        { error: "photoUrl is required and must be a valid Cloudinary image URL." },
         { status: 400 }
       );
     }
 
-    // 2. Sanitize and Normalize Optional Fields (default to "")
     let cleanPhoto = photoUrl.trim();
     if (cleanPhoto.startsWith("http://")) {
       cleanPhoto = cleanPhoto.replace("http://", "https://");
     }
 
-    // Validate photoUrl format and ensure secure Cloudinary hosting if provided
-    if (cleanPhoto.length > 0) {
-      if (!cleanPhoto.startsWith("https://")) {
-        return NextResponse.json(
-          { error: "photoUrl must be a secure HTTPS URL." },
-          { status: 400 }
-        );
-      }
-
-      try {
-        const parsedUrl = new URL(cleanPhoto);
-        if (parsedUrl.protocol !== "https:") {
-          return NextResponse.json(
-            { error: "photoUrl must use HTTPS protocol." },
-            { status: 400 }
-          );
-        }
-      } catch {
-        return NextResponse.json(
-          { error: "photoUrl must be a valid URL string." },
-          { status: 400 }
-        );
-      }
-
-      if (!cleanPhoto.startsWith("https://res.cloudinary.com/")) {
-        return NextResponse.json(
-          { error: "photoUrl must be hosted on Cloudinary (https://res.cloudinary.com/...)." },
-          { status: 400 }
-        );
-      }
+    if (!cleanPhoto.startsWith("https://")) {
+      return NextResponse.json(
+        { error: "photoUrl must be a secure HTTPS URL." },
+        { status: 400 }
+      );
     }
 
+    try {
+      const parsedUrl = new URL(cleanPhoto);
+      if (parsedUrl.protocol !== "https:") {
+        return NextResponse.json(
+          { error: "photoUrl must use HTTPS protocol." },
+          { status: 400 }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "photoUrl must be a valid URL string." },
+        { status: 400 }
+      );
+    }
+
+    if (!cleanPhoto.startsWith("https://res.cloudinary.com/")) {
+      return NextResponse.json(
+        { error: "photoUrl must be hosted on Cloudinary (https://res.cloudinary.com/...)." },
+        { status: 400 }
+      );
+    }
+
+    // 2. Sanitize and Normalize Optional Fields
     let cleanLinkedin = (typeof linkedinUrl === "string" ? linkedinUrl : "").trim();
     if (cleanLinkedin.startsWith("http://")) {
       cleanLinkedin = cleanLinkedin.replace("http://", "https://");
@@ -122,12 +132,15 @@ export async function POST(req: NextRequest) {
     }
     cleanLinkedin = cleanLinkedin.replace(/^https:\/\/[a-z]{2}\.linkedin\.com\//i, "https://www.linkedin.com/");
 
-    const cleanDesignation = (typeof designation === "string" ? designation : (typeof currentRole === "string" ? currentRole : "")).trim();
+    // Optional quote (max 300 characters)
+    const cleanQuote = (typeof quote === "string" ? quote : "").trim().slice(0, 300);
+
+    // Default currentRole, organization, higherStudies, location, sector to "" in alumni_profiles
+    const cleanCurrentRole = (typeof currentRole === "string" ? currentRole : (typeof designation === "string" ? designation : "")).trim();
     const cleanOrganization = (typeof organization === "string" ? organization : "").trim();
     const cleanHigherStudies = (typeof higherStudies === "string" ? higherStudies : "").trim();
-    const cleanQuote = (typeof quote === "string" ? quote : "").trim();
-    const cleanSector = (typeof sector === "string" ? sector : "Public Sector").trim() || "Public Sector";
     const cleanLocation = (typeof location === "string" ? location : "").trim();
+    const cleanSector = (typeof sector === "string" ? sector : "").trim();
 
     // 3. Generate document ID using adminDb
     const adminDb = getAdminDb();
@@ -137,8 +150,8 @@ export async function POST(req: NextRequest) {
     const publicDetails = {
       fullName: fullName.trim(),
       batchYear: batchYear.trim(),
-      designation: cleanDesignation,
-      currentRole: cleanDesignation,
+      designation: cleanCurrentRole,
+      currentRole: cleanCurrentRole,
       organization: cleanOrganization,
       sector: cleanSector,
       location: cleanLocation,

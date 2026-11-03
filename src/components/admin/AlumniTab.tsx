@@ -451,10 +451,17 @@ export default function AlumniTab() {
                   </div>
 
                   <div className="text-xs space-y-1 bg-white p-3 rounded-xl border border-amber-200/80">
-                    <div>
-                      <strong className="text-slate-800">{item.currentRole}</strong> at{" "}
-                      <span className="text-slate-600">{item.organization}</span>
-                    </div>
+                    {(item.currentRole || item.organization) ? (
+                      <div>
+                        {item.currentRole && <strong className="text-slate-800">{item.currentRole}</strong>}
+                        {item.currentRole && item.organization && " at "}
+                        {item.organization && <span className="text-slate-600">{item.organization}</span>}
+                      </div>
+                    ) : (
+                      <div className="text-slate-400 italic text-[11px]">
+                        No role / organization specified
+                      </div>
+                    )}
                     {item.location && (
                       <div className="text-[11px] text-slate-500 flex items-center gap-1">
                         <MapPin className="w-3 h-3 text-amber-700" />
@@ -466,9 +473,11 @@ export default function AlumniTab() {
                         Masters: {item.higherStudies}
                       </div>
                     )}
-                    <div className="text-[11px] text-slate-500 font-mono">
-                      Email: {item.email}
-                    </div>
+                    {item.email && (
+                      <div className="text-[11px] text-slate-500 font-mono">
+                        Email: {item.email}
+                      </div>
+                    )}
                   </div>
 
                   {item.quote && (
