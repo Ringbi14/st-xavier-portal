@@ -22,6 +22,7 @@ import {
   X,
   MapPin,
   Check,
+  ExternalLink,
 } from "lucide-react";
 import { AlumniProfile, AlumniSector } from "@/lib/types";
 import CloudinaryUploadField from "./CloudinaryUploadField";
@@ -74,18 +75,13 @@ export default function AlumniTab() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Form State
+  // Streamlined Form State (Core identity, contact, portrait, quote, linkedin)
   const [fullName, setFullName] = useState("");
   const [batchYear, setBatchYear] = useState("2020-2023");
-  const [currentRole, setCurrentRole] = useState("");
-  const [organization, setOrganization] = useState("");
-  const [sector, setSector] = useState<AlumniSector>("Public Sector");
-  const [location, setLocation] = useState("");
-  const [higherStudies, setHigherStudies] = useState("");
-  const [quote, setQuote] = useState("");
   const [email, setEmail] = useState("");
-  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [quote, setQuote] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
@@ -195,10 +191,12 @@ export default function AlumniTab() {
     return (
       search === "" ||
       a.fullName.toLowerCase().includes(q) ||
-      a.organization.toLowerCase().includes(q) ||
-      a.currentRole.toLowerCase().includes(q) ||
-      a.location?.toLowerCase().includes(q) ||
-      a.batchYear?.toLowerCase().includes(q)
+      (a.batchYear && a.batchYear.toLowerCase().includes(q)) ||
+      (a.quote && a.quote.toLowerCase().includes(q)) ||
+      (a.organization && a.organization.toLowerCase().includes(q)) ||
+      (a.currentRole && a.currentRole.toLowerCase().includes(q)) ||
+      (a.location && a.location.toLowerCase().includes(q)) ||
+      (a.higherStudies && a.higherStudies.toLowerCase().includes(q))
     );
   });
 
@@ -206,11 +204,6 @@ export default function AlumniTab() {
     setEditingId(null);
     setFullName("");
     setBatchYear("2020-2023");
-    setCurrentRole("");
-    setOrganization("");
-    setSector("Public Sector");
-    setLocation("");
-    setHigherStudies("");
     setQuote("");
     setEmail("");
     setLinkedinUrl("");
@@ -222,11 +215,6 @@ export default function AlumniTab() {
     setEditingId(item.id);
     setFullName(item.fullName || "");
     setBatchYear(item.batchYear || "2020-2023");
-    setCurrentRole(item.currentRole || "");
-    setOrganization(item.organization || "");
-    setSector(item.sector || "Public Sector");
-    setLocation(item.location || "");
-    setHigherStudies(item.higherStudies || "");
     setQuote(item.quote || "");
     setEmail(item.email || "");
     setLinkedinUrl(item.linkedinUrl || "");
@@ -287,10 +275,27 @@ export default function AlumniTab() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !batchYear.trim() || !currentRole.trim() || !organization.trim() || !email.trim()) {
-      setToast({ message: "Please provide the full name, graduating batch, current role, organization, and email.", type: "error" });
+    if (!fullName.trim() || !batchYear.trim() || !email.trim()) {
+      setToast({ message: "Please provide the full name, graduating batch, and email.", type: "error" });
       return;
     }
+
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setToast({ message: "Please enter a valid email address.", type: "error" });
+      return;
+    }
+
+    if (!photoUrl.trim()) {
+      setToast({ message: "Please upload or provide a portrait photo URL.", type: "error" });
+      return;
+    }
+
+    if (quote.trim().length > 300) {
+      setToast({ message: "Message to juniors must be 300 characters or fewer.", type: "error" });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -305,20 +310,24 @@ export default function AlumniTab() {
       if (cleanLinkedin && !cleanLinkedin.startsWith("https://")) {
         cleanLinkedin = "https://" + cleanLinkedin;
       }
-      // Normalize country subdomain e.g. in.linkedin.com to www.linkedin.com for firestore regex
+      // Normalize country subdomain e.g. in.linkedin.com to www.linkedin.com
       cleanLinkedin = cleanLinkedin.replace(/^https:\/\/[a-z]{2}\.linkedin\.com\//i, "https://www.linkedin.com/");
 
+      const existing = editingId ? alumni.find((a) => a.id === editingId) : undefined;
+
+      // Streamlined payload with legacy schema fields safely defaulted to empty strings
       const publicPayload = {
         fullName: fullName.trim().slice(0, 100),
         batchYear: normalizeBatchYear(batchYear).slice(0, 20),
-        currentRole: currentRole.trim().slice(0, 120),
-        organization: organization.trim().slice(0, 150),
-        sector: (sector || "Public Sector").slice(0, 80),
-        location: (location || "").trim().slice(0, 100),
-        higherStudies: (higherStudies || "").trim().slice(0, 200),
-        quote: (quote || "").trim().slice(0, 600),
+        quote: (quote || "").trim().slice(0, 300),
         photoUrl: cleanPhoto.slice(0, 500),
         linkedinUrl: cleanLinkedin.slice(0, 250),
+        currentRole: existing?.currentRole || "",
+        organization: existing?.organization || "",
+        location: existing?.location || "",
+        higherStudies: existing?.higherStudies || "",
+        sector: (existing?.sector || "") as AlumniSector,
+        designation: existing?.currentRole || "",
         status: "approved" as const,
       };
 
@@ -441,7 +450,7 @@ export default function AlumniTab() {
                           {item.fullName}
                         </div>
                         <div className="text-[11px] font-semibold text-amber-800 font-mono">
-                          Batch {item.batchYear} • {item.sector}
+                          Batch {item.batchYear}{item.sector ? ` • ${item.sector}` : ""}
                         </div>
                       </div>
                     </div>
@@ -569,26 +578,55 @@ export default function AlumniTab() {
                               {item.higherStudies}
                             </div>
                           )}
+                          {item.linkedinUrl && (
+                            <a
+                              href={item.linkedinUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:underline mt-0.5"
+                            >
+                              <span>LinkedIn</span>
+                              <ExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                          )}
                         </div>
                       </div>
                     </td>
 
                     <td className="py-3 px-4 align-top">
-                      <div className="font-bold text-slate-900">{item.currentRole}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">{item.organization}</div>
+                      {(item.currentRole || item.organization) ? (
+                        <>
+                          {item.currentRole && <div className="font-bold text-slate-900">{item.currentRole}</div>}
+                          {item.organization && <div className="text-[11px] text-slate-500 mt-0.5">{item.organization}</div>}
+                        </>
+                      ) : item.quote ? (
+                        <div className="text-[11px] text-slate-700 italic max-w-xs line-clamp-2">
+                          &ldquo;{item.quote}&rdquo;
+                        </div>
+                      ) : (
+                        <div className="text-slate-400 italic text-[11px]">No role or quote</div>
+                      )}
                       {item.email && (
-                        <div className="text-[10px] font-mono text-slate-400 mt-0.5">{item.email}</div>
+                        <div className="text-[10px] font-mono text-slate-400 mt-1">{item.email}</div>
                       )}
                     </td>
 
                     <td className="py-3 px-4 align-top">
-                      <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                        {item.sector}
-                      </span>
+                      {item.sector ? (
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                          {item.sector}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">—</span>
+                      )}
                     </td>
 
                     <td className="py-3 px-4 align-top text-slate-600">
-                      {item.location || "Manipur"}
+                      {item.location ? (
+                        <span>{item.location}</span>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">—</span>
+                      )}
                     </td>
 
                     <td className="py-3 px-4 align-top text-right whitespace-nowrap">
@@ -649,7 +687,7 @@ export default function AlumniTab() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Full Name *
+                    Full Name <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -657,13 +695,13 @@ export default function AlumniTab() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. K. Victor Maram"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 text-slate-900"
                   />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Graduating Batch *
+                    Graduating Batch <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -673,150 +711,83 @@ export default function AlumniTab() {
                     placeholder="e.g., 2021–2024 or 2024"
                     maxLength={20}
                     required
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 font-semibold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Current Role / Designation *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={currentRole}
-                    onChange={(e) => setCurrentRole(e.target.value)}
-                    placeholder="e.g. Child Protection Officer"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Organization / Institution *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={organization}
-                    onChange={(e) => setOrganization(e.target.value)}
-                    placeholder="e.g. World Vision / DCPU"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Sector / Domain *
-                  </label>
-                  <select
-                    value={sector}
-                    onChange={(e) => setSector(e.target.value as AlumniSector)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 font-semibold"
-                  >
-                    <option value="Public Sector">Public Sector / Government</option>
-                    <option value="Child Welfare">Child Welfare & Protection</option>
-                    <option value="Rural Development">Rural Development & Livelihood</option>
-                    <option value="Higher Education">Higher Education & Research</option>
-                    <option value="Healthcare & Mental Health">Healthcare & Psychiatric Social Work</option>
-                    <option value="NGO & Advocacy">NGO & Grassroots Advocacy</option>
-                    <option value="CSR & Corporate">Corporate Social Responsibility (CSR)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Senapati, Manipur"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 font-semibold text-slate-900"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Higher Studies / Master&apos;s Degree
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700">
+                    Email Address <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-amber-700 font-semibold">
+                    Kept private in alumni_private
+                  </span>
+                </div>
                 <input
-                  type="text"
-                  value={higherStudies}
-                  onChange={(e) => setHigherStudies(e.target.value)}
-                  placeholder="e.g. MSW from TISS Mumbai"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="alumnus@domain.com"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 text-slate-900"
                 />
               </div>
 
               <CloudinaryUploadField
-                label="Portrait Photo (Cloudinary Direct Upload or URL)"
+                label="Portrait Photo"
                 value={photoUrl}
                 onChange={setPhotoUrl}
+                required={true}
                 placeholder="https://res.cloudinary.com/... or paste image URL"
-                folder="st_xavier_alumni"
+                folder="st_xavier_portal/alumni"
               />
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  Junior Advice / Reflection Quote
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700">
+                    Message to Juniors / Quote (Optional)
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {quote.length}/300
+                  </span>
+                </div>
                 <textarea
                   rows={3}
+                  maxLength={300}
                   value={quote}
                   onChange={(e) => setQuote(e.target.value)}
-                  placeholder="Reflection for junior BSW batches..."
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
+                  placeholder="Share memories, encouragement for junior batches, or a note to visitors..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 text-slate-900"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Contact Email *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="alumnus@domain.com"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    LinkedIn URL
-                  </label>
-                  <input
-                    type="url"
-                    value={linkedinUrl}
-                    onChange={(e) => setLinkedinUrl(e.target.value)}
-                    placeholder="https://linkedin.com/in/..."
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20"
-                  />
-                </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  LinkedIn Profile URL (Optional)
+                </label>
+                <input
+                  type="url"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  placeholder="https://linkedin.com/in/username"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f2042]/20 text-slate-900"
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold"
+                  className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-xl bg-[#0f2042] hover:bg-[#1e3a8a] text-white font-bold transition shadow-xs disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-[#0f2042] hover:bg-[#1e3a8a] text-white font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? "Saving..." : editingId ? "Update Profile" : "Publish Alumni Profile"}
                 </button>
